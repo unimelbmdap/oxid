@@ -3,6 +3,7 @@ from pathlib import Path
 
 from .data import read_data
 from .viz import plot_moment
+from .viz import plot_standards as plot_standards_viz
 
 app = typer.Typer()
 
@@ -28,3 +29,8 @@ def plot(
 ):
     data = read_data(file)
     plot_moment(data).show()
+
+
+@app.command()
+def plot_standards():
+    plot_standards_viz().show()
