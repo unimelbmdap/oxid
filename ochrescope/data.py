@@ -100,7 +100,7 @@ class ZFCFC(Data):
         transition_index = temp_diff[temp_diff < 0].index[0]
 
         # Label ZFC and FC based on the transition index
-        df["Regime"] = ["ZFC" if i <= transition_index else "FC" for i in df.index]
+        df["Regime"] = ["ZFC" if i < transition_index else "FC" for i in df.index]
 
         zfc_data = df[df["Regime"] == "ZFC"]
         fc_data = df[df["Regime"] == "FC"]
