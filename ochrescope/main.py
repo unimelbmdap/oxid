@@ -1,7 +1,7 @@
 import typer
 from pathlib import Path
 
-from .data import read_data
+# from .data import read_data
 from .viz import plot_moment
 from .viz import plot_standards as plot_standards_viz
 
