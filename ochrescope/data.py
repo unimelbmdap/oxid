@@ -49,6 +49,11 @@ class Data():
                 x, y = my_extracted[key]
                 standard_x, _ = standard_extracted[key]
 
+                # make sure the x values are sorted
+                sorted_indices = np.argsort(x)
+                x = x[sorted_indices]
+                y = y[sorted_indices]
+
                 # Test if the x values are in the same range, if not, then truncate my data
                 if x[0] < standard_x.min() or x[-1] > standard_x.max():
                     y = y[(x >= standard_x.min()) & (x <= standard_x.max())]
@@ -63,6 +68,12 @@ class Data():
             interpolated_array = []
             for standard_extracted in standards:
                 standard_x, standard_y = standard_extracted[key]
+
+                # make sure the x values are sorted
+                sorted_indices = np.argsort(standard_x)
+                standard_x = standard_x[sorted_indices]
+                standard_y = standard_y[sorted_indices]
+
                 interpolated_array.append(np.interp(x, standard_x, standard_y))
 
             result[key] = (x, y, interpolated_array)
@@ -186,10 +197,41 @@ def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     return iron_oxide.standard_data(measurement)
 
 
-def collate_results(files:list[Data], iron_oxides:list[IronOxide]) -> pd.DataFrame:
-    results = []
-    for data in files: 
+def collate_results(data_files:list[Data], iron_oxides:list[IronOxide]) -> tuple[np.ndarray, list[np.ndarray]]:
+    observed = np.empty((0,))
+    basis_functions = [np.empty((0,))] * len(iron_oxides)
+    for data in data_files: 
         result = data.interpolate_standards(iron_oxides)
-        results.append(result)
-    
-    return pd.DataFrame(results)
+        for _, value in result.items():
+            _, y, standards = value
+            observed = np.concatenate((observed, y))
+            for iron_oxide_index in range(len(iron_oxides)):
+                basis_functions[iron_oxide_index] = np.concatenate((basis_functions[iron_oxide_index], standards[iron_oxide_index]))
+    return observed, basis_functions
+
+
+def data_files_list(
+    hysteresis: Path = None,
+    rtsirm: Path = None,
+    zfcfc: Path = None,
+) -> list[Data]:
+    data_files = []
+    if hysteresis:
+        data_files.append(Hysteresis(hysteresis))
+    if rtsirm:
+        data_files.append(RTSIRM(rtsirm))
+    if zfcfc:
+        data_files.append(ZFCFC(zfcfc))
+
+    return data_files
+
+
+def iron_oxides_list(magnetite:bool, hematite:bool, goethite:bool) -> list[IronOxide]:
+    iron_oxides = []
+    if magnetite:
+        iron_oxides.append(IronOxide.MAGNETITE)
+    if hematite:
+        iron_oxides.append(IronOxide.HEMATITE)
+    if goethite:
+        iron_oxides.append(IronOxide.GOETHITE)
+    return iron_oxides

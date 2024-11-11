@@ -1,6 +1,7 @@
 import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.subplots import make_subplots
+import numpy as np
 
 from .data import IronOxide, DATA_TYPES, Data
 
@@ -69,4 +70,21 @@ def plot_standards() -> go.Figure:
 
     fig.update_layout(width=1100, height=800)
 
+    return fig
+
+
+def plot_inputs(observed:np.ndarray, basis_functions:list[np.ndarray]) -> go.Figure:
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(y=observed, mode='markers', name='Observed', marker=dict(color='black')),
+    )
+
+    for i, basis_function in enumerate(basis_functions):
+        fig.add_trace(
+            go.Scatter(y=basis_function, mode='markers', name=f'Basis Function {i}'),
+        )
+
+    fig.update_layout(title='Observed vs Basis Functions')
+    format_fig(fig)
     return fig
