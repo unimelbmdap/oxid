@@ -37,6 +37,37 @@ class Data():
     @property
     def x_axis(self) -> str:
         raise NotImplementedError
+    
+    def interpolate_standards(self, iron_oxides:list["IronOxide"]) -> np.ndarray:
+        my_extracted = self.extract()
+        standards = [IronOxide.get(iron_oxide).standard_data(self.__class__.__name__.lower()).extract() for iron_oxide in iron_oxides]
+
+        # Truncate my data to the same range as the standard data
+        for standard_extracted in standards:
+            assert my_extracted.keys() == standard_extracted.keys()
+            for key in my_extracted.keys():
+                x, y = my_extracted[key]
+                standard_x, _ = standard_extracted[key]
+
+                # Test if the x values are in the same range, if not, then truncate my data
+                if x[0] < standard_x.min() or x[-1] > standard_x.max():
+                    y = y[(x >= standard_x.min()) & (x <= standard_x.max())]
+                    x = x[(x >= standard_x.min()) & (x <= standard_x.max())]  
+
+                my_extracted[key] = (x, y)
+
+        # Interpolate standard data to my x values
+        result = {}
+        for key in my_extracted.keys():
+            x, y = my_extracted[key]
+            interpolated_array = []
+            for standard_extracted in standards:
+                standard_x, standard_y = standard_extracted[key]
+                interpolated_array.append(np.interp(x, standard_x, standard_y))
+
+            result[key] = (x, y, interpolated_array)
+        
+        return result
 
 
 class Hysteresis(Data):
@@ -146,10 +177,19 @@ class IronOxide(Enum):
     def __str__(self) -> str:
         return self.value
     
-    def standard_data(self, data_type:str) -> pd.DataFrame:
+    def standard_data(self, data_type:str) -> Data:
         return DATA_TYPES[data_type](self.get_file(data_type))
 
 
-def standard_data(iron_oxide:IronOxide|str, measurement:str) -> pd.DataFrame:
+def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     iron_oxide = IronOxide.get(iron_oxide)
     return iron_oxide.standard_data(measurement)
+
+
+def collate_results(files:list[Data], iron_oxides:list[IronOxide]) -> pd.DataFrame:
+    results = []
+    for data in files: 
+        result = data.interpolate_standards(iron_oxides)
+        results.append(result)
+    
+    return pd.DataFrame(results)
