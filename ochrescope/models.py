@@ -1,5 +1,6 @@
 import numpy as np
-from .data import IronOxide
+from pathlib import Path
+from .data import Hysteresis, RTSIRM, ZFCFC, IronOxide, collate_results, data_files_list, iron_oxides_list
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
     return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma"]
@@ -47,4 +48,21 @@ def sample_posterior(model, samples:int=1_000):
         # Sample from the posterior
         inference_data = pm.sample(samples, return_inferencedata=True)
     
+    return inference_data
+
+
+def run_inference(
+    hysteresis_path: Path|None,
+    rtsirm_path: Path|None,
+    zfcfc_path: Path|None,
+    iron_oxides: list[IronOxide],
+    samples: int = 1_000,
+) -> np.ndarray:
+    data_files = data_files_list(hysteresis_path, rtsirm_path, zfcfc_path)
+
+    # collate results
+    observed, basis_functions = collate_results(data_files, iron_oxides)
+
+    model = build_model(observed, basis_functions, iron_oxides)
+    inference_data = sample_posterior(model, samples=samples)
     return inference_data
