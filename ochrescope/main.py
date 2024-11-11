@@ -28,17 +28,16 @@ def infer(
     typer.echo("Analyzing...")
     inference_data_path = Path(inference_data) if inference_data else None
 
-    # Create list of data files
-    data_files = data_files_list(hysteresis, rtsirm, zfcfc)
-
     # Create list of Iron Oxide Types to use
     iron_oxides = iron_oxides_list(magnetite, hematite, goethite)
 
-    # collate results
-    observed, basis_functions = collate_results(data_files, iron_oxides)
-
-    model = build_model(observed, basis_functions, iron_oxides)
-    inference_data = sample_posterior(model, samples=samples)
+    inference_data = run_inference(
+        hysteresis_path=hysteresis,
+        rtsirm_path=rtsirm,
+        zfcfc_path=zfcfc,
+        iron_oxides=iron_oxides,
+        samples=samples,
+    )
     
     # Print summary
     variable_names = get_variable_names(iron_oxides)
