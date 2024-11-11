@@ -1,6 +1,6 @@
 import typer
 from pathlib import Path
-import numpy as np
+import pandas as pd
 import arviz as az
 
 # from .data import read_data
@@ -8,7 +8,7 @@ from .data import Hysteresis, RTSIRM, ZFCFC, IronOxide, collate_results, data_fi
 from .viz import plot_moment
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
-from .models import build_model, sample_posterior
+from .models import build_model, sample_posterior, get_variable_names
 
 app = typer.Typer()
 
@@ -22,8 +22,11 @@ def analyze(
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
     samples:int=typer.Option(1_000, help="Number of samples to draw from the posterior"),
+    plot:Path=typer.Option(None, help="Path to save the posterior plot"),
+    inference_data:Path=typer.Option(None, help="Path to save the inference data"),
 ):
     typer.echo("Analyzing...")
+    inference_data_path = Path(inference_data) if inference_data else None
 
     # Create list of data files
     data_files = data_files_list(hysteresis, rtsirm, zfcfc)
@@ -34,10 +37,96 @@ def analyze(
     # collate results
     observed, basis_functions = collate_results(data_files, iron_oxides)
 
-    model = build_model(observed, basis_functions)
-    trace = sample_posterior(model, samples=samples)
-    print(az.summary(trace))
-    breakpoint()
+    model = build_model(observed, basis_functions, iron_oxides)
+    inference_data = sample_posterior(model, samples=samples)
+    
+    # Print summary
+    variable_names = get_variable_names(iron_oxides)
+    summary = az.summary(inference_data)
+    summary = summary[summary.index.isin(variable_names)]
+    print(summary)
+
+    if inference_data_path:
+        inference_data_path.parent.mkdir(parents=True, exist_ok=True)
+        inference_data.to_netcdf(inference_data_path)
+
+    if plot:
+        import matplotlib.pyplot as plt
+        plot = Path(plot)
+        plot.parent.mkdir(parents=True, exist_ok=True)
+        
+        az.plot_posterior(
+            inference_data,
+            var_names=variable_names,
+        )
+        plt.savefig(plot)
+    
+
+@app.command()
+def analyze_csv(
+    csv: Path = typer.Option(..., help="Path of the CSV file. Needs to have columns 'Hysteresis', 'RT-SIRM', 'ZFC-FC'"),
+    magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
+    hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
+    goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
+    samples:int=typer.Option(1_000, help="Number of samples to draw from the posterior"),
+    plot:Path=typer.Option(None, help="Path to save the posterior plot"),
+    inference_data:Path=typer.Option(None, help="Path to save the inference data"),
+):
+    df = pd.read_csv(csv)
+
+    # Create list of Iron Oxide Types to use
+    iron_oxides = iron_oxides_list(magnetite, hematite, goethite)
+
+    def noramlize_column_name(name):
+        return name.lower().replace("-", "")
+
+    def find_column(df, name):
+        name = noramlize_column_name(name)
+        for column in df.columns:
+            if name in noramlize_column_name(column):
+                return column
+        return None
+    
+    hysteresis_column = find_column(df, "hysteresis")
+    rtsirm_column = find_column(df, "rtsirm")
+    zfcfc_column = find_column(df, "zfcfc")
+
+    for i, row in df.iterrows():
+        if 
+    
+    typer.echo("Analyzing...")
+
+    inference_data_path = Path(inference_data) if inference_data else None
+
+    # Create list of data files
+    data_files = data_files_list(hysteresis, rtsirm, zfcfc)
+
+    # collate results
+    observed, basis_functions = collate_results(data_files, iron_oxides)
+
+    model = build_model(observed, basis_functions, iron_oxides)
+    inference_data = sample_posterior(model, samples=samples)
+    
+    # Print summary
+    variable_names = get_variable_names(iron_oxides)
+    summary = az.summary(inference_data)
+    summary = summary[summary.index.isin(variable_names)]
+    print(summary)
+
+    if inference_data_path:
+        inference_data_path.parent.mkdir(parents=True, exist_ok=True)
+        inference_data.to_netcdf(inference_data_path)
+
+    if plot:
+        import matplotlib.pyplot as plt
+        plot = Path(plot)
+        plot.parent.mkdir(parents=True, exist_ok=True)
+        
+        az.plot_posterior(
+            inference_data,
+            var_names=variable_names,
+        )
+        plt.savefig(plot)
     
 
 @app.command()

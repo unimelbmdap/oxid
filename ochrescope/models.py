@@ -1,10 +1,17 @@
 import numpy as np
+from .data import IronOxide
 
-def build_model(observed:np.ndarray, basis_functions:list[np.ndarray]) -> np.ndarray:
+def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
+    return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma"]
+
+
+def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]) -> np.ndarray:
     import pymc as pm
     
     # Number of basis functions
     k = len(basis_functions)
+
+    assert len(iron_oxides) == k
 
     # Stack the basis functions into a (n_observations x k) matrix
     X = np.column_stack(basis_functions)
@@ -15,13 +22,16 @@ def build_model(observed:np.ndarray, basis_functions:list[np.ndarray]) -> np.nda
     # Create the PyMC model
     with pm.Model() as model:
         # Define the Dirichlet prior for the proportions
-        proportions = pm.Dirichlet("proportions", a=alpha)
+        iron_oxide_proportions = pm.Dirichlet("iron_oxide_proportions", a=alpha)
 
-        fe_proportion = pm.Beta("fe_proportion", alpha=1, beta=1)
+        # Give names to the proportions
+        for i, iron_oxide in enumerate(iron_oxides):
+            pm.Deterministic(f"{iron_oxide}_proportion", iron_oxide_proportions[i])
+
+        total_iron_oxide_proportion = pm.Beta("total_iron_oxide_proportion", alpha=1, beta=1)
 
         # Define the linear combination of the basis functions
-        # The last basis function contributes nothing but is included in the sum
-        linear_combination = pm.math.dot(X, proportions) / fe_proportion
+        linear_combination = pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion
 
         # Likelihood: Assume the observations are normally distributed around the linear combination
         sigma = pm.HalfCauchy("sigma", beta=1)
@@ -35,6 +45,6 @@ def sample_posterior(model, samples:int=1_000):
 
     with model:
         # Sample from the posterior
-        trace = pm.sample(samples, return_inferencedata=True)
+        inference_data = pm.sample(samples, return_inferencedata=True)
     
-    return trace
+    return inference_data
