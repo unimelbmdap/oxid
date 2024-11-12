@@ -21,8 +21,8 @@ def infer(
     magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    draws:int=typer.Option(200, help="Number of samples to draw from the posterior"),
-    tune:int=typer.Option(200, help="Number of samples to tune the sampler"),
+    draws:int=typer.Option(500, help="Number of samples to draw from the posterior"),
+    tune:int=typer.Option(100, help="Number of samples to tune the sampler"),
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
 ):
@@ -71,8 +71,8 @@ def infer_csv(
     magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    draws:int=typer.Option(200, help="Number of samples to draw from the posterior"),
-    tune:int=typer.Option(200, help="Number of samples to tune the sampler"),
+    draws:int=typer.Option(500, help="Number of samples to draw from the posterior"),
+    tune:int=typer.Option(100, help="Number of samples to tune the sampler"),
 ):
     df = pd.read_csv(csv)
 

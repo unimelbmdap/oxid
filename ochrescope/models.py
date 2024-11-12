@@ -41,7 +41,7 @@ def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxid
     return model
 
 
-def sample_posterior(model, draws:int=200, tune=200):
+def sample_posterior(model, draws:int=500, tune:int=100):
     import pymc as pm
 
     with model:
@@ -56,8 +56,8 @@ def run_inference(
     rtsirm_path: Path|None,
     zfcfc_path: Path|None,
     iron_oxides: list[IronOxide],
-    draws: int = 200,
-    tune: int = 200,
+    draws: int = 500,
+    tune: int = 100,
 ) -> np.ndarray:
     
     print("Inferring iron oxide proportions from:")
