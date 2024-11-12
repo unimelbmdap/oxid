@@ -159,3 +159,5 @@ mlruns
 .vscode
 
 *.dat
+*.png
+input.csv

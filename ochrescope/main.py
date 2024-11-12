@@ -21,7 +21,8 @@ def infer(
     magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    samples:int=typer.Option(1_000, help="Number of samples to draw from the posterior"),
+    draws:int=typer.Option(200, help="Number of samples to draw from the posterior"),
+    tune:int=typer.Option(200, help="Number of samples to tune the sampler"),
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
 ):
@@ -36,7 +37,8 @@ def infer(
         rtsirm_path=rtsirm,
         zfcfc_path=zfcfc,
         iron_oxides=iron_oxides,
-        samples=samples,
+        draws=draws,
+        tune=tune,
     )
     
     # Print summary
@@ -63,13 +65,14 @@ def infer(
 
 @app.command()
 def infer_csv(
-    csv: Path = typer.Option(..., help="Path of the CSV file. Needs to have columns 'Hysteresis', 'RT-SIRM', 'ZFC-FC'"),
+    csv: Path = typer.Argument(help="Path of the CSV file. Needs to have columns 'Hysteresis', 'RT-SIRM', 'ZFC-FC'"),
     output: Path = typer.Option(None, help="Path to save the output CSV"),
     inplace:bool=typer.Option(False, help="Whether to save the output CSV in place"),
     magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    samples:int=typer.Option(1_000, help="Number of samples to draw from the posterior"),
+    draws:int=typer.Option(200, help="Number of samples to draw from the posterior"),
+    tune:int=typer.Option(200, help="Number of samples to tune the sampler"),
 ):
     df = pd.read_csv(csv)
 
@@ -98,19 +101,24 @@ def infer_csv(
 
     variable_names = get_variable_names(iron_oxides)
 
+    base_dir = csv.parent.resolve()
+    def get_path(column) -> Path|None:
+        return base_dir/row[column] if column and row[column] else None
+        
     for i, row in df.iterrows():
-        typer.echo("Analyzing...")
         inference_data = run_inference(
-            hysteresis_path=row[hysteresis_column] if hysteresis_column else None,
-            rtsirm_path=row[rtsirm_column] if rtsirm_column else None,
-            zfcfc_path=row[zfcfc_column] if zfcfc_column else None,
+            hysteresis_path=get_path(hysteresis_column),
+            rtsirm_path=get_path(rtsirm_column),
+            zfcfc_path=get_path(zfcfc_column),
             iron_oxides=iron_oxides,
-            samples=samples,
+            draws=draws,
+            tune=tune,
         )
     
         # Print summary
         summary = az.summary(inference_data)
         summary = summary[summary.index.isin(variable_names)]
+        print(summary)
 
         # Add to CSV
         for variable_name in variable_names:
@@ -122,9 +130,9 @@ def infer_csv(
                 # Add values to df
                 df.at[i, col_name] = summary.loc[variable_name, summary_name]
     
-    assert output is not None
-    output.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output, index=False)
+        assert output is not None
+        output.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(output, index=False)
     
 
 @app.command()
@@ -136,8 +144,6 @@ def plot_inputs(
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
 ):
-    typer.echo("Analyzing...")
-
     # Create list of data files
     data_files = data_files_list(hysteresis, rtsirm, zfcfc)
 
@@ -155,6 +161,22 @@ def plot_rtsirm(
     file:Path = typer.Argument(help="Path to a data file"),
 ):
     data = RTSIRM(file)
+    plot_moment(data, title=file.name).show()
+
+
+@app.command()
+def plot_zfcfc(
+    file:Path = typer.Argument(help="Path to a data file"),
+):
+    data = ZFCFC(file)
+    plot_moment(data, title=file.name).show()
+
+
+@app.command()
+def plot_hysteresis(
+    file:Path = typer.Argument(help="Path to a data file"),
+):
+    data = Hysteresis(file)
     plot_moment(data, title=file.name).show()
 
 

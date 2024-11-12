@@ -1,6 +1,6 @@
 import numpy as np
 from pathlib import Path
-from .data import Hysteresis, RTSIRM, ZFCFC, IronOxide, collate_results, data_files_list, iron_oxides_list
+from .data import IronOxide, collate_results, data_files_list
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
     return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma"]
@@ -41,12 +41,12 @@ def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxid
     return model
 
 
-def sample_posterior(model, samples:int=1_000):
+def sample_posterior(model, draws:int=200, tune=200):
     import pymc as pm
 
     with model:
         # Sample from the posterior
-        inference_data = pm.sample(samples, return_inferencedata=True)
+        inference_data = pm.sample(draws=draws, tune=tune, return_inferencedata=True)
     
     return inference_data
 
@@ -56,13 +56,23 @@ def run_inference(
     rtsirm_path: Path|None,
     zfcfc_path: Path|None,
     iron_oxides: list[IronOxide],
-    samples: int = 1_000,
+    draws: int = 200,
+    tune: int = 200,
 ) -> np.ndarray:
+    
+    print("Inferring iron oxide proportions from:")
+    if hysteresis_path and hysteresis_path.exists():
+        print(f"  Hysteresis: {hysteresis_path}")
+    if rtsirm_path and rtsirm_path.exists():
+        print(f"  RT-SIRM: {rtsirm_path}")
+    if zfcfc_path and zfcfc_path.exists():
+        print(f"  ZFC-FC: {zfcfc_path}")
+
     data_files = data_files_list(hysteresis_path, rtsirm_path, zfcfc_path)
 
     # collate results
     observed, basis_functions = collate_results(data_files, iron_oxides)
 
     model = build_model(observed, basis_functions, iron_oxides)
-    inference_data = sample_posterior(model, samples=samples)
+    inference_data = sample_posterior(model, draws=draws, tune=tune)
     return inference_data
