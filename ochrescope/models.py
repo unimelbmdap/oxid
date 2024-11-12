@@ -1,5 +1,9 @@
 import numpy as np
 from pathlib import Path
+from rich.console import Console
+
+console = Console()
+
 from .data import IronOxide, collate_results, data_files_list
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
@@ -59,14 +63,14 @@ def run_inference(
     draws: int = 500,
     tune: int = 100,
 ) -> np.ndarray:
-    
-    print("Inferring iron oxide proportions from:")
+    console.rule("Ochrescope Inference")
+    console.print("[bold green]Inferring iron oxide proportions from:")
     if hysteresis_path and hysteresis_path.exists():
-        print(f"  Hysteresis: {hysteresis_path}")
+        console.print(f"  [red]Hysteresis:[/red] {hysteresis_path}")
     if rtsirm_path and rtsirm_path.exists():
-        print(f"  RT-SIRM: {rtsirm_path}")
+        console.print(f"  [red]RT-SIRM:[/red] {rtsirm_path}")
     if zfcfc_path and zfcfc_path.exists():
-        print(f"  ZFC-FC: {zfcfc_path}")
+        console.print(f"  [red]ZFC-FC:[/red] {zfcfc_path}")
 
     data_files = data_files_list(hysteresis_path, rtsirm_path, zfcfc_path)
 

@@ -13,6 +13,7 @@ typer = "^0.13.0"
 pandas = "^2.2.3"
 plotly = "^5.24.1"
 kaleido = "=0.2.1"
+rich = "^13.9.4"
 
 
 [tool.poetry.group.dev.dependencies]
