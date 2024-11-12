@@ -1,6 +1,7 @@
 import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.subplots import make_subplots
+from pathlib import Path
 import numpy as np
 
 from .data import IronOxide, DATA_TYPES, Data
@@ -31,7 +32,7 @@ def format_fig(fig):
     return fig
 
 
-def plot_moment(data:Data, fig:go.Figure|None=None, row=1, col=1, title:str="", show_x_axis:bool=True) -> go.Figure:
+def plot_moment(data:Data, fig:go.Figure|None=None, row=1, col=1, title:str="", show_x_axis:bool=True, show:bool=False, output:Path|None=None) -> go.Figure:
     if fig is None:
         fig = make_subplots(rows=1, cols=1)
 
@@ -51,6 +52,14 @@ def plot_moment(data:Data, fig:go.Figure|None=None, row=1, col=1, title:str="", 
 
     fig.update_layout(title=title)
     format_fig(fig)
+
+    if show:
+        fig.show()
+    if output:
+        output = Path(output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        fig.write_image(output)
+
     return fig
 
 

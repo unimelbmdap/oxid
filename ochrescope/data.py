@@ -172,6 +172,7 @@ class IronOxide(Enum):
     GOETHITE = 'goethite'
     HEMATITE = 'hematite'
     MAGNETITE = 'magnetite'
+    MAGHEMITE = 'maghemite'
 
     def get_dir(self) -> Path:
         return STANDARDS_DIR / self.value
@@ -226,7 +227,7 @@ def data_files_list(
     return data_files
 
 
-def iron_oxides_list(magnetite:bool, hematite:bool, goethite:bool) -> list[IronOxide]:
+def iron_oxides_list(goethite:bool, hematite:bool, magnetite:bool, maghemite:bool) -> list[IronOxide]:
     iron_oxides = []
     if magnetite:
         iron_oxides.append(IronOxide.MAGNETITE)
@@ -234,4 +235,6 @@ def iron_oxides_list(magnetite:bool, hematite:bool, goethite:bool) -> list[IronO
         iron_oxides.append(IronOxide.HEMATITE)
     if goethite:
         iron_oxides.append(IronOxide.GOETHITE)
+    if maghemite:
+        iron_oxides.append(IronOxide.MAGHEMITE)
     return iron_oxides

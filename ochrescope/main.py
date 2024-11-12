@@ -8,7 +8,7 @@ from .data import Hysteresis, RTSIRM, ZFCFC, IronOxide, collate_results, data_fi
 from .viz import plot_moment
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
-from .models import build_model, sample_posterior, get_variable_names, run_inference
+from .models import build_model, sample_posterior, get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT
 
 app = typer.Typer()
 
@@ -21,8 +21,9 @@ def infer(
     magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    draws:int=typer.Option(500, help="Number of samples to draw from the posterior"),
-    tune:int=typer.Option(100, help="Number of samples to tune the sampler"),
+    maghemite:bool=typer.Option(True, help="Whether the infer the proportion of maghemite in the sample"),
+    draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
+    tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
 ):
@@ -30,7 +31,7 @@ def infer(
     inference_data_path = Path(inference_data) if inference_data else None
 
     # Create list of Iron Oxide Types to use
-    iron_oxides = iron_oxides_list(magnetite, hematite, goethite)
+    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite)
 
     inference_data = run_inference(
         hysteresis_path=hysteresis,
@@ -71,8 +72,9 @@ def infer_csv(
     magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    draws:int=typer.Option(500, help="Number of samples to draw from the posterior"),
-    tune:int=typer.Option(100, help="Number of samples to tune the sampler"),
+    maghemite:bool=typer.Option(True, help="Whether the infer the proportion of maghemite in the sample"),
+    draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
+    tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
 ):
     df = pd.read_csv(csv)
 
@@ -83,7 +85,7 @@ def infer_csv(
         output = csv
 
     # Create list of Iron Oxide Types to use
-    iron_oxides = iron_oxides_list(magnetite, hematite, goethite)
+    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite)
 
     def noramlize_column_name(name):
         return name.lower().replace("-", "")
@@ -143,12 +145,13 @@ def plot_inputs(
     magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
     hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
     goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
+    maghemite:bool=typer.Option(True, help="Whether the infer the proportion of maghemite in the sample"),
 ):
     # Create list of data files
     data_files = data_files_list(hysteresis, rtsirm, zfcfc)
 
     # Create list of Iron Oxide Types to use
-    iron_oxides = iron_oxides_list(magnetite, hematite, goethite)
+    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite)
 
     # collate results
     observed, basis_functions = collate_results(data_files, iron_oxides)
@@ -159,25 +162,31 @@ def plot_inputs(
 @app.command()
 def plot_rtsirm(
     file:Path = typer.Argument(help="Path to a data file"),
+    show:bool = typer.Option(True, help="Whether to show the plot"),
+    output:Path = typer.Option(None, help="Path to save the plot"),
 ):
     data = RTSIRM(file)
-    plot_moment(data, title=file.name).show()
+    plot_moment(data, title=file.name, show=show, output=output)
 
 
 @app.command()
 def plot_zfcfc(
     file:Path = typer.Argument(help="Path to a data file"),
+    show:bool = typer.Option(True, help="Whether to show the plot"),
+    output:Path = typer.Option(None, help="Path to save the plot"),
 ):
     data = ZFCFC(file)
-    plot_moment(data, title=file.name).show()
+    plot_moment(data, title=file.name, show=show, output=output)
 
 
 @app.command()
 def plot_hysteresis(
     file:Path = typer.Argument(help="Path to a data file"),
+    show:bool = typer.Option(True, help="Whether to show the plot"),
+    output:Path = typer.Option(None, help="Path to save the plot"),
 ):
     data = Hysteresis(file)
-    plot_moment(data, title=file.name).show()
+    plot_moment(data, title=file.name, show=show, output=output)
 
 
 @app.command()

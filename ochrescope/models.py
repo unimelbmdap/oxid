@@ -4,6 +4,10 @@ from rich.console import Console
 
 console = Console()
 
+TUNE_DEFAULT=1_000
+DRAWS_DEFAULT=1_000
+
+
 from .data import IronOxide, collate_results, data_files_list
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
@@ -45,7 +49,7 @@ def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxid
     return model
 
 
-def sample_posterior(model, draws:int=500, tune:int=100):
+def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT):
     import pymc as pm
 
     with model:
@@ -60,8 +64,8 @@ def run_inference(
     rtsirm_path: Path|None,
     zfcfc_path: Path|None,
     iron_oxides: list[IronOxide],
-    draws: int = 500,
-    tune: int = 100,
+    draws: int = DRAWS_DEFAULT,
+    tune: int = TUNE_DEFAULT,
 ) -> np.ndarray:
     console.rule("Ochrescope Inference")
     console.print("[bold green]Inferring iron oxide proportions from:")
