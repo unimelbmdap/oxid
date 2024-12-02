@@ -63,11 +63,11 @@ def plot_moment(data:Data, fig:go.Figure|None=None, row=1, col=1, title:str="", 
     return fig
 
 
-def plot_standards() -> go.Figure:
+def plot_standards(width:int=1100, height:int=1100) -> go.Figure:
     fig = go.Figure()
     fig = make_subplots(
-        rows=3, cols=3,
-        subplot_titles=["Hysteresis", "RT-SIRM", "ZFC-FC"],
+        rows=len(IronOxide), cols=len(DATA_TYPES),
+        subplot_titles=[str(data_type) for data_type in DATA_TYPES],
         horizontal_spacing=0.05,
         vertical_spacing=0.05,
     )
@@ -77,7 +77,8 @@ def plot_standards() -> go.Figure:
         for data_type_index, data_type in enumerate(DATA_TYPES):
             plot_moment(oxide.standard_data(data_type), fig=fig, row=i+1, col=data_type_index+1, show_x_axis=show_x_axis)
 
-    fig.update_layout(width=1100, height=800)
+    format_fig(fig)
+    fig.update_layout(width=width, height=height)
 
     return fig
 
