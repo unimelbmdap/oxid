@@ -9,6 +9,15 @@ from .data import IronOxide, DATA_TYPES, Data
 pio.kaleido.scope.mathjax = None
 
 
+def process_fig(fig:go.Figure, output:Path|None=None, show:bool=False) -> None:
+    if show:
+        fig.show()
+    if output:
+        output = Path(output)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        fig.write_image(output)
+
+
 def format_fig(fig):
     """Formats a plotly figure in a nicer way."""
     fig.update_layout(
@@ -53,17 +62,11 @@ def plot_moment(data:Data, fig:go.Figure|None=None, row=1, col=1, title:str="", 
     fig.update_layout(title=title)
     format_fig(fig)
 
-    if show:
-        fig.show()
-    if output:
-        output = Path(output)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        fig.write_image(output)
-
+    process_fig(fig, output, show)
     return fig
 
 
-def plot_standards(width:int=1100, height:int=1100) -> go.Figure:
+def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path|None=None) -> go.Figure:
     fig = go.Figure()
     fig = make_subplots(
         rows=len(IronOxide), cols=len(DATA_TYPES),
@@ -77,9 +80,12 @@ def plot_standards(width:int=1100, height:int=1100) -> go.Figure:
         for data_type_index, data_type in enumerate(DATA_TYPES):
             plot_moment(oxide.standard_data(data_type), fig=fig, row=i+1, col=data_type_index+1, show_x_axis=show_x_axis)
 
+        fig.update_yaxes(title_text=str(oxide), row=i+1, col=1)
+        
     format_fig(fig)
     fig.update_layout(width=width, height=height)
 
+    process_fig(fig, output, show)
     return fig
 
 

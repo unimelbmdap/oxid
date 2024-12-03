@@ -190,5 +190,8 @@ def plot_hysteresis(
 
 
 @app.command()
-def plot_standards():
-    plot_standards_viz().show()
+def plot_standards(
+    show:bool = typer.Option(True, help="Whether to show the plot"),
+    output:Path = typer.Option(None, help="Path to save the plot"),        
+):
+    plot_standards_viz(show=show, output=output)
