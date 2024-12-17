@@ -89,18 +89,35 @@ def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path
     return fig
 
 
-def plot_inputs(observed:np.ndarray, basis_functions:list[np.ndarray]) -> go.Figure:
+def plot_inputs(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide], rescale:bool=False) -> go.Figure:
     fig = go.Figure()
+
+    if rescale:
+        observed = observed / np.max(observed)
+        basis_functions = [basis_function / np.max(basis_function) for basis_function in basis_functions]
 
     fig.add_trace(
         go.Scatter(y=observed, mode='markers', name='Observed', marker=dict(color='black')),
     )
 
-    for i, basis_function in enumerate(basis_functions):
+    for basis_function, iron_oxide in zip(basis_functions, iron_oxides):
         fig.add_trace(
-            go.Scatter(y=basis_function, mode='markers', name=f'Basis Function {i}'),
+            go.Scatter(
+                y=basis_function, 
+                mode='markers', 
+                name=f'{iron_oxide.title()} Basis Function',
+            ),
         )
 
-    fig.update_layout(title='Observed vs Basis Functions')
+    title = 'Observed vs Basis Functions'
+    if rescale:
+        title += ' (Rescaled)'
+        fig.update_yaxes(title_text='Normalized Moment (A⋅m2/kg)', tickformat=".1%")
+    else:
+        fig.update_yaxes(title_text='Moment (A⋅m2/kg)')
+
+    fig.update_xaxes(title_text='Interpolated Data Point')
+
+    fig.update_layout(title=title)
     format_fig(fig)
     return fig

@@ -27,6 +27,9 @@ def infer(
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
 ):
+    """
+    Infer the proportions of iron oxides in a sample using hysteresis, RT-SIRM, and/or ZFC-FC data.
+    """
     typer.echo("Analyzing...")
     inference_data_path = Path(inference_data) if inference_data else None
 
@@ -76,6 +79,9 @@ def infer_csv(
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
 ):
+    """
+    Infer the proportions of iron oxides for multiple samples using hysteresis, RT-SIRM, and/or ZFC-FC data files listed in a CSV.
+    """
     df = pd.read_csv(csv)
 
     if output is None and not inplace:  
@@ -142,11 +148,15 @@ def plot_inputs(
     hysteresis: Path = typer.Option(None, help="Path to a hysteresis data file"),
     rtsirm: Path = typer.Option(None, help="Path to a RT-SIRM data file"),
     zfcfc: Path = typer.Option(None, help="Path to a ZFC-FC data file"),
-    magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
-    hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
-    goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    maghemite:bool=typer.Option(True, help="Whether the infer the proportion of maghemite in the sample"),
+    magnetite:bool=typer.Option(True, help="Whether to plot the magnetite basis function"),
+    hematite:bool=typer.Option(True, help="Whether to plot the hematite basis function"),
+    goethite:bool=typer.Option(True, help="Whether to plot the goethite basis function"),
+    maghemite:bool=typer.Option(True, help="Whether to plot the maghemite basis function"),
+    rescale:bool=typer.Option(False, help="Whether to rescale the plots by the maximum value"),
 ):
+    """
+    Plot the observed data and basis functions for a sample using hysteresis, RT-SIRM, and/or ZFC-FC
+    """
     # Create list of data files
     data_files = data_files_list(hysteresis, rtsirm, zfcfc)
 
@@ -156,7 +166,7 @@ def plot_inputs(
     # collate results
     observed, basis_functions = collate_results(data_files, iron_oxides)
 
-    plot_inputs_viz(observed, basis_functions).show()
+    plot_inputs_viz(observed, basis_functions, iron_oxides, rescale=rescale).show()
 
 
 @app.command()
@@ -165,6 +175,7 @@ def plot_rtsirm(
     show:bool = typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
 ):
+    """ Plot RT-SIRM data of a sample """
     data = RTSIRM(file)
     plot_moment(data, title=file.name, show=show, output=output)
 
@@ -175,6 +186,7 @@ def plot_zfcfc(
     show:bool = typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
 ):
+    """ Plot ZFC-FC data of a sample """
     data = ZFCFC(file)
     plot_moment(data, title=file.name, show=show, output=output)
 
@@ -185,6 +197,7 @@ def plot_hysteresis(
     show:bool = typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
 ):
+    """ Plot hysteresis data of a sample """
     data = Hysteresis(file)
     plot_moment(data, title=file.name, show=show, output=output)
 
@@ -194,4 +207,5 @@ def plot_standards(
     show:bool = typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),        
 ):
+    """ Plot standard hysteresis, RT-SIRM, and ZFC-FC for each iron oxide """
     plot_standards_viz(show=show, output=output)

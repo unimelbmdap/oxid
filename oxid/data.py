@@ -191,6 +191,9 @@ class IronOxide(Enum):
     
     def standard_data(self, data_type:str) -> Data:
         return DATA_TYPES[data_type](self.get_file(data_type))
+    
+    def title(self):
+        return self.value.title()
 
 
 def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
