@@ -112,7 +112,7 @@ def plot_inputs(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxid
     title = 'Observed vs Basis Functions'
     if rescale:
         title += ' (Rescaled)'
-        fig.update_yaxes(title_text='Normalized Moment (A⋅m2/kg)', tickformat=".1%")
+        fig.update_yaxes(title_text='Moment (A⋅m2/kg) rescaled by maximum value', tickformat=".1%")
     else:
         fig.update_yaxes(title_text='Moment (A⋅m2/kg)')
 
