@@ -70,7 +70,7 @@ def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path
     fig = go.Figure()
     fig = make_subplots(
         rows=len(IronOxide), cols=len(DATA_TYPES),
-        subplot_titles=[str(data_type) for data_type in DATA_TYPES],
+        subplot_titles=[data_type.title() for data_type in DATA_TYPES.values()],
         horizontal_spacing=0.05,
         vertical_spacing=0.05,
     )
@@ -80,7 +80,7 @@ def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path
         for data_type_index, data_type in enumerate(DATA_TYPES):
             plot_moment(oxide.standard_data(data_type), fig=fig, row=i+1, col=data_type_index+1, show_x_axis=show_x_axis)
 
-        fig.update_yaxes(title_text=str(oxide), row=i+1, col=1)
+        fig.update_yaxes(title_text=oxide.title(), row=i+1, col=1)
         
     format_fig(fig)
     fig.update_layout(width=width, height=height)

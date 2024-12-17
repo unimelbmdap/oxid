@@ -80,6 +80,10 @@ class Data():
         
         return result
 
+    @classmethod
+    def title(self) -> str:
+        return str().title()
+
 
 class Hysteresis(Data):
     @property
@@ -130,6 +134,10 @@ class RTSIRM(Data):
                 return 'red'
         return 'black'
 
+    @classmethod
+    def title(self) -> str:
+        return "RT-SIRM"
+
 
 class ZFCFC(Data):
     @property
@@ -147,6 +155,10 @@ class ZFCFC(Data):
         zfc_data = df[df["Regime"] == "ZFC"]
         fc_data = df[df["Regime"] == "FC"]
 
+        # remove first point for both ZFC and FC
+        zfc_data = zfc_data.iloc[1:]
+        fc_data = fc_data.iloc[1:]
+
         return dict(
             ZFC=(zfc_data[self.x_axis].values, zfc_data['Moment (A⋅m2/kg)'].values),
             FC=(fc_data[self.x_axis].values, fc_data['Moment (A⋅m2/kg)'].values),
@@ -159,6 +171,10 @@ class ZFCFC(Data):
             case 'FC':
                 return 'yellow'
         return 'black'
+
+    @classmethod
+    def title(self) -> str:
+        return "ZFC-FC"
 
 
 DATA_TYPES = {
