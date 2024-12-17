@@ -62,5 +62,5 @@ Credits
 This package was created by:
 
 - `Maddison Crombie <https://www.linkedin.com/in/maddison-crombie-26814b12a/?originalSubdomain=au>`_
-- `Robert Turnbull <https://findanexpert.unimelb.edu.au/profile/877006-robert-turnbull>`_
+- `Robert Turnbull <https://robturnbull.com>`_
 - `Rachel Popelka-Filcoff <https://findanexpert.unimelb.edu.au/profile/870256-rachel-popelka-filcoff>`_
