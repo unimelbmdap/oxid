@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "ochrescope"
+name = "oxid"
 version = "0.1.0"
 description = "A python package that takes magenetic data from samples of Ochre to predict the type of iron oxide present"
 authors = ["Maddison Crombie", "Robert Turnbull <robert.turnbull@unimelb.edu.au>", "Rachel Popelka-Filcoff"]
@@ -24,4 +24,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-ochrescope = "ochrescope.main:app"
+oxid = "oxid.main:app"

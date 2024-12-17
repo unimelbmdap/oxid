@@ -1,5 +1,5 @@
 ====================
-Ochrescope
+OxID
 ====================
 
 A python package that takes magenetic data from samples of Ochre to predict the type of iron oxide present
@@ -13,14 +13,14 @@ Then clone the repository:
 
 .. code-block:: bash
 
-    git clone https://github.com/unimelbmdap/ochrescope.git
+    git clone https://github.com/unimelbmdap/oxid.git
 
 
 Then install the dependencies using poetry:
 
 .. code-block:: bash
 
-    cd ochrescope
+    cd oxid
     poetry install
 
 Enter the virtual environment:
@@ -32,29 +32,29 @@ Enter the virtual environment:
 Usage
 =====
 
-To use the Ochrescope on a single sample, you can run the following command:
+To use the OxID on a single sample, you can run the following command:
 
 .. code-block:: bash
 
-    ochrescope infer --rtsirm <RT-SIRM.dat> --hysteresis <hysteresis.dat> --zfcfc <zfcfc.dat> --plot <plot.png>
+    oxid infer --rtsirm <RT-SIRM.dat> --hysteresis <hysteresis.dat> --zfcfc <zfcfc.dat> --plot <plot.png>
 
 You do not need to include each of the input files, but you must include at least one of them. The `--plot` argument is also optional.
 
-To use the Ochrescope on a batch of samples, you can run the following command:
+To use the OxID on a batch of samples, you can run the following command:
 
 .. code-block:: bash
 
-    ochrescope infer-csv <input.csv> --output <output.csv>
+    oxid infer-csv <input.csv> --output <output.csv>
 
 The input.csv file should have at least one of the following columns: `RT-SIRM`, `Hyster`, `ZFC-FC` (case insensitive and hyphens are optional). 
-If the column is not found or the corresponding cell is blank in a row, then Ochrescope will skip that input data type.
+If the column is not found or the corresponding cell is blank in a row, then OxID will skip that input data type.
 The output.csv file will contain the inferred values plus all the columns from the input file.
 
 See more options by running:
 
 .. code-block:: bash
 
-    ochrescope --help
+    oxid --help
 
 Credits
 =======

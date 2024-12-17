@@ -67,7 +67,7 @@ def run_inference(
     draws: int = DRAWS_DEFAULT,
     tune: int = TUNE_DEFAULT,
 ) -> np.ndarray:
-    console.rule("Ochrescope Inference")
+    console.rule("OxID Inference")
     console.print("[bold green]Inferring iron oxide proportions from:")
     if hysteresis_path and hysteresis_path.exists():
         console.print(f"  [red]Hysteresis:[/red] {hysteresis_path}")

@@ -158,7 +158,6 @@ mlruns
 .DS_store
 .vscode
 
-*.dat
 *.png
 input.csv
 
