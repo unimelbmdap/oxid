@@ -80,10 +80,6 @@ class Data():
         
         return result
 
-    @classmethod
-    def title(self) -> str:
-        return str().title()
-
 
 class Hysteresis(Data):
     @property
@@ -109,6 +105,9 @@ class Hysteresis(Data):
                 return 'orange'
         return 'black'
 
+    @classmethod
+    def title(cls) -> str:
+        return "Hysteresis"
 
 class RTSIRM(Data):
     @property
@@ -135,7 +134,7 @@ class RTSIRM(Data):
         return 'black'
 
     @classmethod
-    def title(self) -> str:
+    def title(cls) -> str:
         return "RT-SIRM"
 
 
@@ -173,7 +172,7 @@ class ZFCFC(Data):
         return 'black'
 
     @classmethod
-    def title(self) -> str:
+    def title(cls) -> str:
         return "ZFC-FC"
 
 
