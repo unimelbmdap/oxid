@@ -109,6 +109,7 @@ class Hysteresis(Data):
     def title(cls) -> str:
         return "Hysteresis"
 
+
 class RTSIRM(Data):
     @property
     def x_axis(self) -> str:
@@ -188,6 +189,7 @@ class IronOxide(Enum):
     HEMATITE = 'hematite'
     MAGNETITE = 'magnetite'
     MAGHEMITE = 'maghemite'
+    ALGOETHITE = 'algoethite'
 
     def get_dir(self) -> Path:
         return STANDARDS_DIR / self.value
@@ -208,6 +210,8 @@ class IronOxide(Enum):
         return DATA_TYPES[data_type](self.get_file(data_type))
     
     def title(self):
+        if self == IronOxide.ALGOETHITE:
+            return "Al-Goethite"
         return self.value.title()
 
 

@@ -18,10 +18,11 @@ def infer(
     hysteresis: Path = typer.Option(None, help="Path to a hysteresis data file"),
     rtsirm: Path = typer.Option(None, help="Path to a RT-SIRM data file"),
     zfcfc: Path = typer.Option(None, help="Path to a ZFC-FC data file"),
-    magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
-    hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
-    goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    maghemite:bool=typer.Option(True, help="Whether the infer the proportion of maghemite in the sample"),
+    magnetite:bool=typer.Option(True, help="Whether to infer the proportion of magnetite in the sample"),
+    hematite:bool=typer.Option(True, help="Whether to infer the proportion of hematite in the sample"),
+    goethite:bool=typer.Option(True, help="Whether to infer the proportion of goethite in the sample"),
+    maghemite:bool=typer.Option(True, help="Whether to infer the proportion of maghemite in the sample"),
+    algoethite:bool=typer.Option(True, help="Whether to infer the proportion of al-goethite in the sample"),
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
@@ -34,7 +35,7 @@ def infer(
     inference_data_path = Path(inference_data) if inference_data else None
 
     # Create list of Iron Oxide Types to use
-    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite)
+    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
 
     inference_data = run_inference(
         hysteresis_path=hysteresis,
@@ -72,10 +73,11 @@ def infer_csv(
     csv: Path = typer.Argument(help="Path of the CSV file. Needs to have columns 'Hysteresis', 'RT-SIRM', 'ZFC-FC'"),
     output: Path = typer.Option(None, help="Path to save the output CSV"),
     inplace:bool=typer.Option(False, help="Whether to save the output CSV in place"),
-    magnetite:bool=typer.Option(True, help="Whether the infer the proportion of magnetite in the sample"),
-    hematite:bool=typer.Option(True, help="Whether the infer the proportion of hematite in the sample"),
-    goethite:bool=typer.Option(True, help="Whether the infer the proportion of goethite in the sample"),
-    maghemite:bool=typer.Option(True, help="Whether the infer the proportion of maghemite in the sample"),
+    magnetite:bool=typer.Option(True, help="Whether to infer the proportion of magnetite in the sample"),
+    hematite:bool=typer.Option(True, help="Whether to infer the proportion of hematite in the sample"),
+    goethite:bool=typer.Option(True, help="Whether to infer the proportion of goethite in the sample"),
+    maghemite:bool=typer.Option(True, help="Whether to infer the proportion of maghemite in the sample"),
+    algoethite:bool=typer.Option(True, help="Whether to infer the proportion of al-goethite in the sample"),
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
 ):
@@ -91,7 +93,7 @@ def infer_csv(
         output = csv
 
     # Create list of Iron Oxide Types to use
-    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite)
+    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
 
     def noramlize_column_name(name):
         return name.lower().replace("-", "")
@@ -152,6 +154,7 @@ def plot_inputs(
     hematite:bool=typer.Option(True, help="Whether to plot the hematite basis function"),
     goethite:bool=typer.Option(True, help="Whether to plot the goethite basis function"),
     maghemite:bool=typer.Option(True, help="Whether to plot the maghemite basis function"),
+    algoethite:bool=typer.Option(True, help="Whether to plot the al-goethite basis function"),
     rescale:bool=typer.Option(False, help="Whether to rescale the plots by the maximum value"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
@@ -164,7 +167,7 @@ def plot_inputs(
     data_files = data_files_list(hysteresis, rtsirm, zfcfc)
 
     # Create list of Iron Oxide Types to use
-    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite)
+    iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
 
     # collate results
     observed, basis_functions = collate_results(data_files, iron_oxides)
@@ -210,5 +213,5 @@ def plot_standards(
     show:bool = typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),        
 ):
-    """ Plot standard hysteresis, RT-SIRM, and ZFC-FC for each iron oxide """
+    """ Plot standard Hysteresis, RT-SIRM, and ZFC-FC for each iron oxide """
     plot_standards_viz(show=show, output=output)
