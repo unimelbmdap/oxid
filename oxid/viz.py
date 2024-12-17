@@ -89,7 +89,14 @@ def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path
     return fig
 
 
-def plot_inputs(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide], rescale:bool=False) -> go.Figure:
+def plot_inputs(
+    observed:np.ndarray, 
+    basis_functions:list[np.ndarray], 
+    iron_oxides:list[IronOxide], 
+    rescale:bool=False, 
+    show:bool=False, 
+    output:Path|None=None,
+) -> go.Figure:
     fig = go.Figure()
 
     if rescale:
@@ -120,4 +127,5 @@ def plot_inputs(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxid
 
     fig.update_layout(title=title)
     format_fig(fig)
+    process_fig(fig, output, show)
     return fig
