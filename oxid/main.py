@@ -155,6 +155,7 @@ def plot_inputs(
     rescale:bool=typer.Option(False, help="Whether to rescale the plots by the maximum value"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
+    mode:str=typer.Option('markers', help="Plot mode: 'markers' or 'lines+markers' or 'lines'"),
 ):
     """
     Plot the observed data and basis functions for a sample using hysteresis, RT-SIRM, and/or ZFC-FC
@@ -168,7 +169,7 @@ def plot_inputs(
     # collate results
     observed, basis_functions = collate_results(data_files, iron_oxides)
 
-    plot_inputs_viz(observed, basis_functions, iron_oxides, rescale=rescale, show=show, output=output)
+    plot_inputs_viz(observed, basis_functions, iron_oxides, rescale=rescale, show=show, output=output, mode=mode)
 
 
 @app.command()

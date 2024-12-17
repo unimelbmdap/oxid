@@ -96,6 +96,7 @@ def plot_inputs(
     rescale:bool=False, 
     show:bool=False, 
     output:Path|None=None,
+    mode:str='markers',
 ) -> go.Figure:
     fig = go.Figure()
 
@@ -104,14 +105,14 @@ def plot_inputs(
         basis_functions = [basis_function / np.max(basis_function) for basis_function in basis_functions]
 
     fig.add_trace(
-        go.Scatter(y=observed, mode='markers', name='Observed', marker=dict(color='black')),
+        go.Scatter(y=observed, mode=mode, name='Observed', marker=dict(color='black')),
     )
 
     for basis_function, iron_oxide in zip(basis_functions, iron_oxides):
         fig.add_trace(
             go.Scatter(
                 y=basis_function, 
-                mode='markers', 
+                mode=mode, 
                 name=f'{iron_oxide.title()} Basis Function',
             ),
         )
