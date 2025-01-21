@@ -212,11 +212,23 @@ def plot_posterior_predictive_check(
     fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=keys)
 
     for index, key in enumerate(keys):
-        ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
-        for i in range(ppc.shape[1]):
+        # ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
+        # for i in range(ppc.shape[1]):
+        #     fig.add_trace(
+        #         go.Scatter(
+        #             y=ppc[:, i],
+        #             line=dict(color="gray", width=0.5),
+        #             showlegend=False,
+        #         ),
+        #         row=index + 1,
+        #         col=1,
+        #     )
+
+        linear_combinations = inference_data[key.replace("posterior_predictive", "linear_combination")]["linear_combination"].stack(draws=("chain", "draw")).values
+        for i in range(linear_combinations.shape[1]):
             fig.add_trace(
                 go.Scatter(
-                    y=ppc[:, i],
+                    y=linear_combinations[:, i],
                     line=dict(color="gray", width=0.5),
                     showlegend=False,
                 ),

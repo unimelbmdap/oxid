@@ -40,7 +40,7 @@ def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxid
         total_iron_oxide_proportion = pm.Beta("total_iron_oxide_proportion", alpha=1, beta=1)
 
         # Define the linear combination of the basis functions
-        linear_combination = pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion
+        linear_combination = pm.Deterministic("linear_combination", pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion)
 
         # Likelihood: Assume the observations are normally distributed around the linear combination
         sigma = pm.HalfCauchy("sigma", beta=1)
@@ -69,6 +69,7 @@ def posterior_predictive_check(model, inference_data, regimes) -> np.ndarray:
 
     for dataset in regimes:
         for regime, (start, end) in regimes[dataset].items():
+            ppc_dict[f"linear_combination_{dataset}_{regime}"] = inference_data.posterior["linear_combination"].isel(linear_combination_dim_0=slice(start, end))
             ppc_dict[f"posterior_predictive_{dataset}_{regime}"] = ppc.posterior_predictive["likelihood"].isel(likelihood_dim_2=slice(start, end))
             ppc_dict[f"observed_{dataset}_{regime}"] = inference_data["observed_data"]["likelihood"].isel(likelihood_dim_0=slice(start, end))
 
