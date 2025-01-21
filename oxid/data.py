@@ -249,7 +249,7 @@ def data_files_list(
     return data_files
 
 
-def iron_oxides_list(goethite:bool, hematite:bool, magnetite:bool, maghemite:bool) -> list[IronOxide]:
+def iron_oxides_list(goethite:bool, hematite:bool, magnetite:bool, maghemite:bool, algoethite:bool) -> list[IronOxide]:
     iron_oxides = []
     if magnetite:
         iron_oxides.append(IronOxide.MAGNETITE)
@@ -259,4 +259,6 @@ def iron_oxides_list(goethite:bool, hematite:bool, magnetite:bool, maghemite:boo
         iron_oxides.append(IronOxide.GOETHITE)
     if maghemite:
         iron_oxides.append(IronOxide.MAGHEMITE)
+    if algoethite:
+        iron_oxides.append(IronOxide.ALGOETHITE)
     return iron_oxides
