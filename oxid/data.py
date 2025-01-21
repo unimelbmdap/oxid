@@ -4,6 +4,7 @@ from enum import Enum
 from dataclasses import dataclass
 from functools import cached_property
 import numpy as np
+from collections import defaultdict
 
 STANDARDS_DIR = Path(__file__).parent / "standards"
 
@@ -213,6 +214,21 @@ class IronOxide(Enum):
         if self == IronOxide.ALGOETHITE:
             return "Al-Goethite"
         return self.value.title()
+    
+    @property
+    def color(self) -> str:
+        match self:
+            case IronOxide.GOETHITE:
+                return 'cyan'
+            case IronOxide.HEMATITE:
+                return 'red'
+            case IronOxide.MAGNETITE:
+                return 'black'
+            case IronOxide.MAGHEMITE:
+                return 'orange'
+            case IronOxide.ALGOETHITE:
+                return 'blue'
+        return 'grey'
 
 
 def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
@@ -220,17 +236,33 @@ def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     return iron_oxide.standard_data(measurement)
 
 
+# def collate_results(data_files:list[Data], iron_oxides:list[IronOxide]) -> tuple[np.ndarray, list[np.ndarray]]:
+#     observed = np.empty((0,))
+#     basis_functions = [np.empty((0,))] * len(iron_oxides)
+#     for data in data_files: 
+#         result = data.interpolate_standards(iron_oxides)
+#         for key, value in result.items():
+#             _, y, standards = value
+#             observed = np.concatenate((observed, y))
+#             for iron_oxide_index in range(len(iron_oxides)):
+#                 basis_functions[iron_oxide_index] = np.concatenate((basis_functions[iron_oxide_index], standards[iron_oxide_index]))
+#     return observed, basis_functions
+
 def collate_results(data_files:list[Data], iron_oxides:list[IronOxide]) -> tuple[np.ndarray, list[np.ndarray]]:
     observed = np.empty((0,))
     basis_functions = [np.empty((0,))] * len(iron_oxides)
+    current_index = 0
+    regimes = defaultdict(dict)
     for data in data_files: 
         result = data.interpolate_standards(iron_oxides)
-        for _, value in result.items():
+        for regime, value in result.items():
             _, y, standards = value
             observed = np.concatenate((observed, y))
+            regimes[data.title()][regime] = (current_index, current_index+len(y))
+            current_index += len(y)
             for iron_oxide_index in range(len(iron_oxides)):
                 basis_functions[iron_oxide_index] = np.concatenate((basis_functions[iron_oxide_index], standards[iron_oxide_index]))
-    return observed, basis_functions
+    return observed, basis_functions, regimes
 
 
 def data_files_list(

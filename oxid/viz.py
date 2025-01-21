@@ -130,3 +130,69 @@ def plot_inputs(
     format_fig(fig)
     process_fig(fig, output, show)
     return fig
+
+
+def get_bin_size(data):
+    num_bins = int(np.ceil(np.log2(len(data)) + 1))
+    bin_size = (data.max() - data.min()) / num_bins
+    return bin_size if bin_size > 0 else 0.05
+
+
+def plot_posterior_histograms(
+    inference_data,
+    show: bool = False,
+    output: Path | None = None,
+) -> go.Figure:
+    fig = go.Figure()
+
+    for iron_oxide in IronOxide:
+        key = f"{iron_oxide}_proportion"
+        if key in inference_data.posterior:
+            data = inference_data.posterior[key].values.flatten()
+            mean_value = np.mean(data)
+
+            # Compute histogram bins manually
+            bin_heights, bin_edges = np.histogram(data, bins="auto", density=True)
+            bin_width = np.diff(bin_edges)[0]  # Get uniform bin width
+            max_y = max(bin_heights) if len(bin_heights) > 0 else 0  # Find max bin height
+
+            # Set bin centers by shifting the edges by half the bin width
+            bin_centers = bin_edges[:-1] + bin_width / 2
+
+            # Use go.Bar with width equal to bin width to remove gaps
+            fig.add_trace(
+                go.Bar(
+                    x=bin_centers,
+                    y=bin_heights * bin_width,  # Normalize to match Plotly's probability scaling
+                    width=bin_width,  # Set bar width to be the bin width
+                    name=iron_oxide.title(),
+                    marker=dict(color=iron_oxide.color),
+                )
+            )
+
+            # Add annotation at the top of the highest bin
+            fig.add_annotation(
+                x=mean_value,
+                y=max_y * bin_width * 1.05,  # Slightly above the highest bar
+                xref="x",
+                yref="y",
+                text=f"{mean_value:.2%}",  # Convert mean to percentage
+                showarrow=False,
+                arrowhead=0,
+                arrowcolor=iron_oxide.color,
+                font=dict(color=iron_oxide.color),
+            )
+
+    # Update layout to remove gaps between bars
+    fig.update_layout(
+        barmode="overlay",  # Overlay histograms
+        bargap=0.0,  # No space between bars
+        bargroupgap=0.0,  # No space between histogram groups
+        xaxis_title_text="Proportion",
+        xaxis_tickformat=".1%",
+    )
+
+    format_fig(fig)
+    process_fig(fig, output, show)
+    
+    return fig

@@ -2,13 +2,13 @@ import numpy as np
 from pathlib import Path
 from rich.console import Console
 
+from .data import IronOxide, collate_results, data_files_list
+
 console = Console()
 
 TUNE_DEFAULT=1_000
 DRAWS_DEFAULT=1_000
 
-
-from .data import IronOxide, collate_results, data_files_list
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
     return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma"]
@@ -59,6 +59,20 @@ def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT):
     return inference_data
 
 
+def posterior_predictive_check(model, inference_data, regimes) -> np.ndarray:
+    import pymc as pm
+
+    with model:
+        ppc = pm.sample_posterior_predictive(inference_data)
+
+    # Extract posterior predictive samples as a dictionary
+    ppc_dict = {"posterior_predictive": ppc["posterior_predictive"]}
+
+    # Add posterior predictive samples to the inference data
+    inference_data.add_groups(**ppc_dict)
+
+    return ppc
+
 def run_inference(
     hysteresis_path: Path|None,
     rtsirm_path: Path|None,
@@ -79,8 +93,10 @@ def run_inference(
     data_files = data_files_list(hysteresis_path, rtsirm_path, zfcfc_path)
 
     # collate results
-    observed, basis_functions = collate_results(data_files, iron_oxides)
+    observed, basis_functions, regimes = collate_results(data_files, iron_oxides)
 
     model = build_model(observed, basis_functions, iron_oxides)
     inference_data = sample_posterior(model, draws=draws, tune=tune)
+    posterior_predictive_check(model, inference_data, regimes)
+
     return inference_data

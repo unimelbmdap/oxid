@@ -3,12 +3,12 @@ from pathlib import Path
 import pandas as pd
 import arviz as az
 
-# from .data import read_data
-from .data import Hysteresis, RTSIRM, ZFCFC, IronOxide, collate_results, data_files_list, iron_oxides_list
+from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
 from .viz import plot_moment
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
-from .models import build_model, sample_posterior, get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT
+from .viz import plot_posterior_histograms
+from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT
 
 app = typer.Typer()
 
@@ -25,8 +25,9 @@ def infer(
     algoethite:bool=typer.Option(True, help="Whether to infer the proportion of al-goethite in the sample"),
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
-    plot:Path=typer.Option(None, help="Path to save the posterior plot"),
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
+    show:bool=typer.Option(True, help="Whether to show the plot"),
+    plot:Path=typer.Option(None, help="Path to save the posterior plot"),
 ):
     """
     Infer the proportions of iron oxides in a sample using hysteresis, RT-SIRM, and/or ZFC-FC data.
@@ -56,16 +57,8 @@ def infer(
         inference_data_path.parent.mkdir(parents=True, exist_ok=True)
         inference_data.to_netcdf(inference_data_path)
 
-    if plot:
-        import matplotlib.pyplot as plt
-        plot = Path(plot)
-        plot.parent.mkdir(parents=True, exist_ok=True)
-        
-        az.plot_posterior(
-            inference_data,
-            var_names=variable_names,
-        )
-        plt.savefig(plot)
+    if plot or show:
+        plot_posterior_histograms(inference_data, show=show, output=plot)
     
 
 @app.command()
@@ -170,7 +163,7 @@ def plot_inputs(
     iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
 
     # collate results
-    observed, basis_functions = collate_results(data_files, iron_oxides)
+    observed, basis_functions, _ = collate_results(data_files, iron_oxides)
 
     plot_inputs_viz(observed, basis_functions, iron_oxides, rescale=rescale, show=show, output=output, mode=mode)
 
@@ -215,3 +208,14 @@ def plot_standards(
 ):
     """ Plot standard Hysteresis, RT-SIRM, and ZFC-FC for each iron oxide """
     plot_standards_viz(show=show, output=output)
+
+
+@app.command()
+def plot_posterior(
+    inference_data:Path = typer.Argument(help="Path to the inference data file"),
+    output:Path = typer.Option(None, help="Path to save the plot"),
+    show:bool = typer.Option(True, help="Whether to show the plot"),
+):
+    """ Plot the posterior distribution of the iron oxide proportions """
+    inference_data = az.from_netcdf(inference_data)
+    plot_posterior_histograms(inference_data, show=show, output=output)
