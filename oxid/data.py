@@ -236,18 +236,6 @@ def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     return iron_oxide.standard_data(measurement)
 
 
-# def collate_results(data_files:list[Data], iron_oxides:list[IronOxide]) -> tuple[np.ndarray, list[np.ndarray]]:
-#     observed = np.empty((0,))
-#     basis_functions = [np.empty((0,))] * len(iron_oxides)
-#     for data in data_files: 
-#         result = data.interpolate_standards(iron_oxides)
-#         for key, value in result.items():
-#             _, y, standards = value
-#             observed = np.concatenate((observed, y))
-#             for iron_oxide_index in range(len(iron_oxides)):
-#                 basis_functions[iron_oxide_index] = np.concatenate((basis_functions[iron_oxide_index], standards[iron_oxide_index]))
-#     return observed, basis_functions
-
 def collate_results(data_files:list[Data], iron_oxides:list[IronOxide]) -> tuple[np.ndarray, list[np.ndarray]]:
     observed = np.empty((0,))
     basis_functions = [np.empty((0,))] * len(iron_oxides)

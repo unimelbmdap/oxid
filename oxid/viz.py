@@ -196,3 +196,46 @@ def plot_posterior_histograms(
     process_fig(fig, output, show)
     
     return fig
+
+
+def plot_posterior_predictive_check(
+    inference_data,
+    show: bool = False,
+    output: Path | None = None,
+) -> go.Figure:
+
+    keys = []
+    for key in inference_data.keys():
+        if key.startswith("posterior_predictive_"):
+            keys.append(key)
+
+    fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=keys)
+
+    for index, key in enumerate(keys):
+        ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
+        for i in range(ppc.shape[1]):
+            fig.add_trace(
+                go.Scatter(
+                    y=ppc[:, i],
+                    line=dict(color="gray", width=0.5),
+                    showlegend=False,
+                ),
+                row=index + 1,
+                col=1,
+            )
+
+        observed = inference_data[key.replace("posterior_predictive", "observed")]["likelihood"].values
+        fig.add_trace(
+            go.Scatter(
+                y=observed,
+                mode="markers+lines",
+                name=f"Observed {key}",
+            ),
+            row=index + 1,
+            col=1,
+        )
+
+    format_fig(fig)
+    process_fig(fig, output, show)
+    
+    return fig

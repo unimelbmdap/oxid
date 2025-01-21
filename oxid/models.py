@@ -65,8 +65,12 @@ def posterior_predictive_check(model, inference_data, regimes) -> np.ndarray:
     with model:
         ppc = pm.sample_posterior_predictive(inference_data)
 
-    # Extract posterior predictive samples as a dictionary
     ppc_dict = {"posterior_predictive": ppc["posterior_predictive"]}
+
+    for dataset in regimes:
+        for regime, (start, end) in regimes[dataset].items():
+            ppc_dict[f"posterior_predictive_{dataset}_{regime}"] = ppc.posterior_predictive["likelihood"].isel(likelihood_dim_2=slice(start, end))
+            ppc_dict[f"observed_{dataset}_{regime}"] = inference_data["observed_data"]["likelihood"].isel(likelihood_dim_0=slice(start, end))
 
     # Add posterior predictive samples to the inference data
     inference_data.add_groups(**ppc_dict)

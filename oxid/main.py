@@ -8,6 +8,7 @@ from .viz import plot_moment
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
 from .viz import plot_posterior_histograms
+from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
 from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT
 
 app = typer.Typer()
@@ -219,3 +220,14 @@ def plot_posterior(
     """ Plot the posterior distribution of the iron oxide proportions """
     inference_data = az.from_netcdf(inference_data)
     plot_posterior_histograms(inference_data, show=show, output=output)
+
+
+@app.command()
+def plot_posterior_predictive_check(
+    inference_data:Path = typer.Argument(help="Path to the inference data file"),
+    output:Path = typer.Option(None, help="Path to save the plot"),
+    show:bool = typer.Option(True, help="Whether to show the plot"),
+):
+    """ Plot the posterior predictive check of the iron oxide proportions """
+    inference_data = az.from_netcdf(inference_data)
+    plot_posterior_predictive_check_viz(inference_data, show=show, output=output)
