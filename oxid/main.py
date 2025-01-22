@@ -29,6 +29,7 @@ def infer(
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
+    ppc:Path=typer.Option(None, help="Path to save the posterior predictive check plot"),
 ):
     """
     Infer the proportions of iron oxides in a sample using hysteresis, RT-SIRM, and/or ZFC-FC data.
@@ -58,8 +59,9 @@ def infer(
         inference_data_path.parent.mkdir(parents=True, exist_ok=True)
         inference_data.to_netcdf(inference_data_path)
 
-    if plot or show:
+    if plot or show or ppc:
         plot_posterior_histograms(inference_data, show=show, output=plot)
+        plot_posterior_predictive_check_viz(inference_data, show=show, output=ppc)        
     
 
 @app.command()

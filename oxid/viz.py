@@ -209,7 +209,7 @@ def plot_posterior_predictive_check(
         if key.startswith("posterior_predictive_"):
             keys.append(key)
 
-    fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=keys)
+    fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=[key.replace("posterior_predictive_", "") for key in keys], vertical_spacing=0.1)
 
     for index, key in enumerate(keys):
         # ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
@@ -231,6 +231,7 @@ def plot_posterior_predictive_check(
                     y=linear_combinations[:, i],
                     line=dict(color="gray", width=0.5),
                     showlegend=False,
+                    opacity=0.05,
                 ),
                 row=index + 1,
                 col=1,
@@ -242,12 +243,16 @@ def plot_posterior_predictive_check(
                 y=observed,
                 mode="markers+lines",
                 name=f"Observed {key}",
+                showlegend=False,
             ),
             row=index + 1,
             col=1,
         )
 
     format_fig(fig)
+    fig.update_layout(height=200+300*len(keys))
+
     process_fig(fig, output, show)
+
     
     return fig
