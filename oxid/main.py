@@ -151,7 +151,7 @@ def plot_inputs(
     goethite:bool=typer.Option(True, help="Whether to plot the goethite basis function"),
     maghemite:bool=typer.Option(True, help="Whether to plot the maghemite basis function"),
     algoethite:bool=typer.Option(True, help="Whether to plot the al-goethite basis function"),
-    rescale:bool=typer.Option(False, help="Whether to rescale the plots by the maximum value"),
+    rescale:bool=typer.Option(True, help="Whether to rescale the plots by the maximum value"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
     mode:str=typer.Option('markers', help="Plot mode: 'markers' or 'lines+markers' or 'lines'"),

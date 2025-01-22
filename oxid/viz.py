@@ -166,7 +166,7 @@ def plot_posterior_histograms(
                     y=bin_heights * bin_width,  # Normalize to match Plotly's probability scaling
                     width=bin_width,  # Set bar width to be the bin width
                     name=iron_oxide.title(),
-                    marker=dict(color=iron_oxide.color),
+                    marker=dict(color=iron_oxide.color, line_width=0),
                 )
             )
 

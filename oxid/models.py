@@ -49,6 +49,39 @@ def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxid
     return model
 
 
+def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]) -> np.ndarray:
+    import pymc as pm
+    
+    # Number of basis functions
+    k = len(basis_functions)
+
+    assert len(iron_oxides) == k
+
+    # Stack the basis functions into a (n_observations x k) matrix
+    X = np.column_stack(basis_functions)
+
+    # Alpha parameter for the Dirichlet distribution
+    alpha = np.ones(k + 1)  # Uniform prior, can be modified to reflect different beliefs
+
+    # Create the PyMC model
+    with pm.Model() as model:
+        # Define the Dirichlet prior for the proportions
+        iron_oxide_proportions = pm.Dirichlet("iron_oxide_proportions", a=alpha)
+
+        # Give names to the proportions
+        for i, iron_oxide in enumerate(iron_oxides):
+            pm.Deterministic(f"{iron_oxide}_proportion", iron_oxide_proportions[i])
+
+        # Define the linear combination of the basis functions
+        linear_combination = pm.Deterministic("linear_combination", pm.math.dot(X, iron_oxide_proportions[:k]))
+
+        # Likelihood: Assume the observations are normally distributed around the linear combination
+        sigma = pm.HalfCauchy("sigma", beta=1)
+        pm.Normal("likelihood", mu=linear_combination, sigma=sigma, observed=observed)
+
+    return model
+
+
 def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT):
     import pymc as pm
 
