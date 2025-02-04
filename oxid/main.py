@@ -76,6 +76,9 @@ def infer_csv(
     algoethite:bool=typer.Option(True, help="Whether to infer the proportion of al-goethite in the sample"),
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
+    hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
+    rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
+    zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
 ):
     """
     Infer the proportions of iron oxides for multiple samples using hysteresis, RT-SIRM, and/or ZFC-FC data files listed in a CSV.
@@ -113,9 +116,9 @@ def infer_csv(
         
     for i, row in df.iterrows():
         inference_data = run_inference(
-            hysteresis_path=get_path(hysteresis_column),
-            rtsirm_path=get_path(rtsirm_column),
-            zfcfc_path=get_path(zfcfc_column),
+            hysteresis_path=get_path(hysteresis_column) if hysteresis else None,
+            rtsirm_path=get_path(rtsirm_column) if rtsirm else None,
+            zfcfc_path=get_path(zfcfc_column) if zfcfc else None,
             iron_oxides=iron_oxides,
             draws=draws,
             tune=tune,
