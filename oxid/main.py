@@ -30,6 +30,7 @@ def infer(
     show:bool=typer.Option(True, help="Whether to show the plot"),
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
     ppc:Path=typer.Option(None, help="Path to save the posterior predictive check plot"),
+    gradients:bool=typer.Option(False, help="Whether to use gradients"),
 ):
     """
     Infer the proportions of iron oxides in a sample using hysteresis, RT-SIRM, and/or ZFC-FC data.
@@ -47,6 +48,7 @@ def infer(
         iron_oxides=iron_oxides,
         draws=draws,
         tune=tune,
+        gradients=gradients,
     )
     
     # Print summary
@@ -79,6 +81,7 @@ def infer_csv(
     hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
     zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
+    gradients:bool=typer.Option(False, help="Whether to use gradients"),
 ):
     """
     Infer the proportions of iron oxides for multiple samples using hysteresis, RT-SIRM, and/or ZFC-FC data files listed in a CSV.
@@ -122,6 +125,7 @@ def infer_csv(
             iron_oxides=iron_oxides,
             draws=draws,
             tune=tune,
+            gradients=gradients,
         )
     
         # Print summary
@@ -158,6 +162,7 @@ def plot_inputs(
     show:bool=typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
     mode:str=typer.Option('markers', help="Plot mode: 'markers' or 'lines+markers' or 'lines'"),
+    gradients:bool=typer.Option(False, help="Whether to use gradients"),
 ):
     """
     Plot the observed data and basis functions for a sample using hysteresis, RT-SIRM, and/or ZFC-FC
@@ -169,7 +174,7 @@ def plot_inputs(
     iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
 
     # collate results
-    observed, basis_functions, _ = collate_results(data_files, iron_oxides)
+    observed, basis_functions, _ = collate_results(data_files, iron_oxides, gradients=gradients)
 
     plot_inputs_viz(observed, basis_functions, iron_oxides, rescale=rescale, show=show, output=output, mode=mode)
 

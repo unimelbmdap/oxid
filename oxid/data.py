@@ -236,7 +236,7 @@ def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     return iron_oxide.standard_data(measurement)
 
 
-def collate_results(data_files:list[Data], iron_oxides:list[IronOxide]) -> tuple[np.ndarray, list[np.ndarray]]:
+def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradients:bool=False) -> tuple[np.ndarray, list[np.ndarray]]:
     observed = np.empty((0,))
     basis_functions = [np.empty((0,))] * len(iron_oxides)
     current_index = 0
@@ -245,11 +245,18 @@ def collate_results(data_files:list[Data], iron_oxides:list[IronOxide]) -> tuple
         result = data.interpolate_standards(iron_oxides)
         for regime, value in result.items():
             _, y, standards = value
+            
+            if gradients:
+                y = np.diff(y)
+
             observed = np.concatenate((observed, y))
             regimes[data.title()][regime] = (current_index, current_index+len(y))
             current_index += len(y)
             for iron_oxide_index in range(len(iron_oxides)):
-                basis_functions[iron_oxide_index] = np.concatenate((basis_functions[iron_oxide_index], standards[iron_oxide_index]))
+                basis_function = standards[iron_oxide_index]
+                if gradients:
+                    basis_function = np.diff(basis_function)
+                basis_functions[iron_oxide_index] = np.concatenate((basis_functions[iron_oxide_index], basis_function))
     return observed, basis_functions, regimes
 
 

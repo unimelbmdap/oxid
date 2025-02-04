@@ -118,6 +118,7 @@ def run_inference(
     iron_oxides: list[IronOxide],
     draws: int = DRAWS_DEFAULT,
     tune: int = TUNE_DEFAULT,
+    gradients: bool = False,
 ) -> np.ndarray:
     console.rule("OxID Inference")
     console.print("[bold green]Inferring iron oxide proportions from:")
@@ -131,7 +132,7 @@ def run_inference(
     data_files = data_files_list(hysteresis_path, rtsirm_path, zfcfc_path)
 
     # collate results
-    observed, basis_functions, regimes = collate_results(data_files, iron_oxides)
+    observed, basis_functions, regimes = collate_results(data_files, iron_oxides, gradients=gradients)
 
     model = build_model(observed, basis_functions, iron_oxides)
     inference_data = sample_posterior(model, draws=draws, tune=tune)
