@@ -14,42 +14,115 @@ def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
     return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma"]
 
 
-def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]) -> np.ndarray:
+def build_model_basis_functions(observed: np.ndarray, basis_functions: list[np.ndarray], iron_oxides: list[IronOxide]) -> "pm.Model":
     import pymc as pm
-    
-    # Number of basis functions
-    k = len(basis_functions)
+    import numpy as np
 
+    x_coords = np.arange(len(observed))
+
+    k = len(basis_functions)
     assert len(iron_oxides) == k
 
-    # Stack the basis functions into a (n_observations x k) matrix
     X = np.column_stack(basis_functions)
+    alpha = np.ones(k)
 
-    # Alpha parameter for the Dirichlet distribution
-    alpha = np.ones(k)  # Uniform prior, can be modified to reflect different beliefs
-
-    # Create the PyMC model
     with pm.Model() as model:
-        # Define the Dirichlet prior for the proportions
+        # Proportions of iron oxides
         iron_oxide_proportions = pm.Dirichlet("iron_oxide_proportions", a=alpha)
-
-        # Give names to the proportions
         for i, iron_oxide in enumerate(iron_oxides):
             pm.Deterministic(f"{iron_oxide}_proportion", iron_oxide_proportions[i])
 
         total_iron_oxide_proportion = pm.Beta("total_iron_oxide_proportion", alpha=1, beta=1)
 
-        # Define the linear combination of the basis functions
+        # Linear combination of basis functions
         linear_combination = pm.Deterministic("linear_combination", pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion)
 
-        # Likelihood: Assume the observations are normally distributed around the linear combination
-        sigma = pm.HalfCauchy("sigma", beta=1)
-        pm.Normal("likelihood", mu=linear_combination, sigma=sigma, observed=observed)
+        # Gaussian Process for smooth noise
+        length_scale = pm.Gamma("length_scale", alpha=2, beta=1)  # Smoothness
+        amplitude = pm.HalfNormal("amplitude", sigma=1)  # Scale of f
+
+        cov_func = amplitude**2 * pm.gp.cov.ExpQuad(1, length_scale)
+        gp_noise = pm.gp.Latent(cov_func=cov_func)
+        f = gp_noise.prior("gp_noise", X=x_coords.reshape(-1, 1))
+
+        predicted_mu = pm.Deterministic("predicted_mu", linear_combination + f)
+
+        # Residual independent noise
+        sigma_obs = pm.HalfCauchy("sigma_obs", beta=1)
+
+        # Likelihood
+        pm.Normal("likelihood", mu=predicted_mu, sigma=sigma_obs, observed=observed)
 
     return model
 
 
-def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]) -> np.ndarray:
+
+def build_gp_warped_model(observed: np.ndarray, basis_functions: list[np.ndarray], iron_oxides: list[str]) -> "pm.Model":
+    """
+    Builds a PyMC model where the linear combination of basis functions is transformed smoothly by a Gaussian Process.
+    
+    Parameters:
+    - observed: np.ndarray, observed data
+    - basis_functions: list of np.ndarray, basis functions for iron oxides
+    - iron_oxides: list of str, names of iron oxides
+    - X_coords: np.ndarray, coordinate values where observations were made (e.g., temperature, wavelength, etc.)
+    
+    Returns:
+    - PyMC model where transformations are penalized and must remain smooth.
+    """
+    import pymc as pm
+
+    X_coords = np.arange(len(observed))
+    
+    k = len(basis_functions)
+    assert len(iron_oxides) == k
+
+    # Stack the basis functions into a (n_observations x k) matrix
+    X = np.column_stack(basis_functions)
+
+    # Define the PyMC model
+    with pm.Model() as model:
+        # Dirichlet prior for the proportions of iron oxides
+        alpha = np.ones(k)
+        iron_oxide_proportions = pm.Dirichlet("iron_oxide_proportions", a=alpha)
+
+        # Assign names to proportions
+        for i, iron_oxide in enumerate(iron_oxides):
+            pm.Deterministic(f"{iron_oxide}_proportion", iron_oxide_proportions[i])
+
+        # Total iron oxide proportion as a Beta prior
+        total_iron_oxide_proportion = pm.Beta("total_iron_oxide_proportion", alpha=1, beta=1)
+
+        # Linear combination of basis functions
+        linear_combination = pm.Deterministic(
+            "linear_combination", pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion
+        )
+
+        # Gaussian Process Warping Term
+        ℓ = pm.Gamma("ℓ", alpha=2, beta=1)  # Length scale (smoothness)
+        η = pm.HalfNormal("η", sigma=1)  # Amplitude (magnitude of transformation)
+
+        # Squared Exponential Kernel
+        cov = η**2 * pm.gp.cov.ExpQuad(input_dim=1, ls=ℓ)
+
+        # Zero-mean Gaussian Process (allows only smooth transformations)
+        gp = pm.gp.Latent(cov_func=cov)
+        warp_function = gp.prior("warp_function", X=X_coords[:, None])
+
+        # Penalize large warping: Small deviations are more likely than large ones
+        pm.Potential("warp_penalty", -0.5 * pm.math.sum(warp_function**2))
+
+        # Final predicted curve (linear combination + GP transformation)
+        transformed_curve = pm.Deterministic("transformed_curve", linear_combination + warp_function)
+
+        # Likelihood: Observed values follow this transformed curve
+        sigma = pm.HalfCauchy("sigma", beta=1)
+        pm.Normal("likelihood", mu=transformed_curve, sigma=sigma, observed=observed)
+
+    return model
+
+
+def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]):
     import pymc as pm
     
     # Number of basis functions
@@ -82,12 +155,14 @@ def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iro
     return model
 
 
+build_model = build_model_basis_functions
+
 def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT):
     import pymc as pm
 
     with model:
         # Sample from the posterior
-        inference_data = pm.sample(draws=draws, tune=tune, return_inferencedata=True)
+        inference_data = pm.sample(draws=draws, tune=tune, return_inferencedata=True, cores=1, chains=2)
     
     return inference_data
 
@@ -102,7 +177,7 @@ def posterior_predictive_check(model, inference_data, regimes) -> np.ndarray:
 
     for dataset in regimes:
         for regime, (start, end) in regimes[dataset].items():
-            ppc_dict[f"linear_combination_{dataset}_{regime}"] = inference_data.posterior["linear_combination"].isel(linear_combination_dim_0=slice(start, end))
+            ppc_dict[f"linear_combination_{dataset}_{regime}"] = inference_data.posterior["predicted_mu"].isel(predicted_mu_dim_0=slice(start, end))
             ppc_dict[f"posterior_predictive_{dataset}_{regime}"] = ppc.posterior_predictive["likelihood"].isel(likelihood_dim_2=slice(start, end))
             ppc_dict[f"observed_{dataset}_{regime}"] = inference_data["observed_data"]["likelihood"].isel(likelihood_dim_0=slice(start, end))
 

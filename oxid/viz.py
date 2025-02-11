@@ -223,8 +223,7 @@ def plot_posterior_predictive_check(
         #         row=index + 1,
         #         col=1,
         #     )
-
-        linear_combinations = inference_data[key.replace("posterior_predictive", "linear_combination")]["linear_combination"].stack(draws=("chain", "draw")).values
+        linear_combinations = inference_data[key.replace("posterior_predictive", "linear_combination")]["predicted_mu"].stack(draws=("chain", "draw")).values
         for i in range(linear_combinations.shape[1]):
             fig.add_trace(
                 go.Scatter(
