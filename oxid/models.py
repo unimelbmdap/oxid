@@ -56,72 +56,6 @@ def build_model_basis_functions(observed: np.ndarray, basis_functions: list[np.n
     return model
 
 
-
-def build_gp_warped_model(observed: np.ndarray, basis_functions: list[np.ndarray], iron_oxides: list[str]) -> "pm.Model":
-    """
-    Builds a PyMC model where the linear combination of basis functions is transformed smoothly by a Gaussian Process.
-    
-    Parameters:
-    - observed: np.ndarray, observed data
-    - basis_functions: list of np.ndarray, basis functions for iron oxides
-    - iron_oxides: list of str, names of iron oxides
-    - X_coords: np.ndarray, coordinate values where observations were made (e.g., temperature, wavelength, etc.)
-    
-    Returns:
-    - PyMC model where transformations are penalized and must remain smooth.
-    """
-    import pymc as pm
-
-    X_coords = np.arange(len(observed))
-    
-    k = len(basis_functions)
-    assert len(iron_oxides) == k
-
-    # Stack the basis functions into a (n_observations x k) matrix
-    X = np.column_stack(basis_functions)
-
-    # Define the PyMC model
-    with pm.Model() as model:
-        # Dirichlet prior for the proportions of iron oxides
-        alpha = np.ones(k)
-        iron_oxide_proportions = pm.Dirichlet("iron_oxide_proportions", a=alpha)
-
-        # Assign names to proportions
-        for i, iron_oxide in enumerate(iron_oxides):
-            pm.Deterministic(f"{iron_oxide}_proportion", iron_oxide_proportions[i])
-
-        # Total iron oxide proportion as a Beta prior
-        total_iron_oxide_proportion = pm.Beta("total_iron_oxide_proportion", alpha=1, beta=1)
-
-        # Linear combination of basis functions
-        linear_combination = pm.Deterministic(
-            "linear_combination", pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion
-        )
-
-        # Gaussian Process Warping Term
-        ℓ = pm.Gamma("ℓ", alpha=2, beta=1)  # Length scale (smoothness)
-        η = pm.HalfNormal("η", sigma=1)  # Amplitude (magnitude of transformation)
-
-        # Squared Exponential Kernel
-        cov = η**2 * pm.gp.cov.ExpQuad(input_dim=1, ls=ℓ)
-
-        # Zero-mean Gaussian Process (allows only smooth transformations)
-        gp = pm.gp.Latent(cov_func=cov)
-        warp_function = gp.prior("warp_function", X=X_coords[:, None])
-
-        # Penalize large warping: Small deviations are more likely than large ones
-        pm.Potential("warp_penalty", -0.5 * pm.math.sum(warp_function**2))
-
-        # Final predicted curve (linear combination + GP transformation)
-        transformed_curve = pm.Deterministic("transformed_curve", linear_combination + warp_function)
-
-        # Likelihood: Observed values follow this transformed curve
-        sigma = pm.HalfCauchy("sigma", beta=1)
-        pm.Normal("likelihood", mu=transformed_curve, sigma=sigma, observed=observed)
-
-    return model
-
-
 def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]):
     import pymc as pm
     
@@ -153,7 +87,6 @@ def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iro
         pm.Normal("likelihood", mu=linear_combination, sigma=sigma, observed=observed)
 
     return model
-
 
 build_model = build_model_basis_functions
 
