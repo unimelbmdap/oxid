@@ -9,7 +9,7 @@ from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
 from .viz import plot_posterior_histograms
 from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
-from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT
+from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT
 
 app = typer.Typer()
 
@@ -25,6 +25,7 @@ def infer(
     maghemite:bool=typer.Option(True, help="Whether to infer the proportion of maghemite in the sample"),
     algoethite:bool=typer.Option(True, help="Whether to infer the proportion of al-goethite in the sample"),
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
+    chains:int=typer.Option(CHAINS_DEFAULT, help="Number of chains to run"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
@@ -46,9 +47,10 @@ def infer(
         rtsirm_path=rtsirm,
         zfcfc_path=zfcfc,
         iron_oxides=iron_oxides,
-        draws=draws,
-        tune=tune,
         gradients=gradients,
+        chains=chains,
+        tune=tune,
+        draws=draws,
     )
     
     # Print summary
@@ -77,6 +79,7 @@ def infer_csv(
     maghemite:bool=typer.Option(True, help="Whether to infer the proportion of maghemite in the sample"),
     algoethite:bool=typer.Option(True, help="Whether to infer the proportion of al-goethite in the sample"),
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
+    chains:int=typer.Option(CHAINS_DEFAULT, help="Number of chains to run"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
     hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
@@ -125,6 +128,7 @@ def infer_csv(
             iron_oxides=iron_oxides,
             draws=draws,
             tune=tune,
+            chains=chains,
             gradients=gradients,
         )
     
@@ -161,7 +165,7 @@ def plot_inputs(
     rescale:bool=typer.Option(True, help="Whether to rescale the plots by the maximum value"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
     output:Path = typer.Option(None, help="Path to save the plot"),
-    mode:str=typer.Option('markers', help="Plot mode: 'markers' or 'lines+markers' or 'lines'"),
+    mode:str=typer.Option('lines+markers', help="Plot mode: 'markers' or 'lines+markers' or 'lines'"),
     gradients:bool=typer.Option(False, help="Whether to use gradients"),
 ):
     """
@@ -174,9 +178,9 @@ def plot_inputs(
     iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
 
     # collate results
-    observed, basis_functions, _ = collate_results(data_files, iron_oxides, gradients=gradients)
+    observed, basis_functions, regimes = collate_results(data_files, iron_oxides, gradients=gradients)
 
-    plot_inputs_viz(observed, basis_functions, iron_oxides, rescale=rescale, show=show, output=output, mode=mode)
+    plot_inputs_viz(observed, basis_functions, regimes, iron_oxides, rescale=rescale, show=show, output=output, mode=mode)
 
 
 @app.command()

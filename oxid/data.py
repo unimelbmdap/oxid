@@ -223,7 +223,7 @@ class IronOxide(Enum):
             case IronOxide.HEMATITE:
                 return 'red'
             case IronOxide.MAGNETITE:
-                return 'black'
+                return 'purple'
             case IronOxide.MAGHEMITE:
                 return 'orange'
             case IronOxide.ALGOETHITE:
@@ -236,11 +236,10 @@ def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     return iron_oxide.standard_data(measurement)
 
 
-def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradients:bool=False) -> tuple[np.ndarray, list[np.ndarray]]:
-    observed = np.empty((0,))
-    basis_functions = [np.empty((0,))] * len(iron_oxides)
-    current_index = 0
-    regimes = defaultdict(dict)
+def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradients:bool=False) -> tuple[list[np.ndarray], list[list[np.ndarray]], list[str]]:
+    observations = []
+    basis_functions = []
+    regimes = []
     for data in data_files: 
         result = data.interpolate_standards(iron_oxides)
         for regime, value in result.items():
@@ -249,15 +248,19 @@ def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradient
             if gradients:
                 y = np.diff(y)
 
-            observed = np.concatenate((observed, y))
-            regimes[data.title()][regime] = (current_index, current_index+len(y))
-            current_index += len(y)
+            observations.append(y)
+            regimes.append(regime)
+
+            regime_basis_functions = []
             for iron_oxide_index in range(len(iron_oxides)):
                 basis_function = standards[iron_oxide_index]
                 if gradients:
                     basis_function = np.diff(basis_function)
-                basis_functions[iron_oxide_index] = np.concatenate((basis_functions[iron_oxide_index], basis_function))
-    return observed, basis_functions, regimes
+
+                regime_basis_functions.append(basis_function)
+            basis_functions.append(regime_basis_functions)
+
+    return observations, basis_functions, regimes
 
 
 def data_files_list(

@@ -90,44 +90,56 @@ def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path
 
 
 def plot_inputs(
-    observed:np.ndarray, 
-    basis_functions:list[np.ndarray], 
+    observations:list[np.ndarray], 
+    basis_functions_list:list[list[np.ndarray]], 
+    regimes:list[str],
     iron_oxides:list[IronOxide], 
     rescale:bool=False, 
     show:bool=False, 
     output:Path|None=None,
-    mode:str='markers',
+    mode:str='lines+markers',
 ) -> go.Figure:
-    fig = go.Figure()
+    fig = make_subplots(rows=len(observations), cols=1, shared_xaxes=False, vertical_spacing=0.05, subplot_titles=regimes)
 
-    if rescale:
-        observed = observed / np.max(observed)
-        basis_functions = [basis_function / np.max(basis_function) for basis_function in basis_functions]
+    row = 0
+    for observed, basis_functions, regime in zip(observations, basis_functions_list, regimes):
+        row += 1
+        if rescale:
+            observed = observed / np.max(observed)
+            basis_functions = [basis_function / np.max(basis_function) for basis_function in basis_functions]
 
-    fig.add_trace(
-        go.Scatter(y=observed, mode=mode, name='Observed', marker=dict(color='black')),
-    )
-
-    for basis_function, iron_oxide in zip(basis_functions, iron_oxides):
         fig.add_trace(
-            go.Scatter(
-                y=basis_function, 
-                mode=mode, 
-                name=f'{iron_oxide.title()} Basis Function',
-            ),
+            go.Scatter(y=observed, mode=mode, name='Observed', marker_color='black', marker_line_color='black', marker_line_width=3, marker_size=5, showlegend=row==1),
+            row=row,
+            col=1,
         )
+
+        for basis_function, iron_oxide in zip(basis_functions, iron_oxides):
+            fig.add_trace(
+                go.Scatter(
+                    y=basis_function, 
+                    mode=mode, 
+                    name=f'{iron_oxide.title()} Basis Function',
+                    marker=dict(color=iron_oxide.color),
+                    showlegend=row==1,
+                ),
+                row=row,
+                col=1,
+            )
 
     title = 'Observed vs Basis Functions'
     if rescale:
         title += ' (Rescaled)'
-        fig.update_yaxes(title_text='Moment (A⋅m2/kg) rescaled by maximum value', tickformat=".1%")
+        fig.update_yaxes(title_text='Rescaled Moment (A⋅m2/kg)', tickformat=".1%")
     else:
         fig.update_yaxes(title_text='Moment (A⋅m2/kg)')
 
-    fig.update_xaxes(title_text='Interpolated Data Point')
+    fig.update_xaxes(title_text='')
+    fig.update_layout(**{f"xaxis{row}_title_text": 'Index'})
 
     fig.update_layout(title=title)
     format_fig(fig)
+    fig.update_layout(height=200+300*len(observations))
     process_fig(fig, output, show)
     return fig
 
@@ -205,11 +217,11 @@ def plot_posterior_predictive_check(
 ) -> go.Figure:
 
     keys = []
-    for key in inference_data.keys():
-        if key.startswith("posterior_predictive_"):
+    for key in inference_data['posterior'].keys():
+        if key.startswith("predicted_mu_"):
             keys.append(key)
 
-    fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=[key.replace("posterior_predictive_", "") for key in keys], vertical_spacing=0.1)
+    fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=[key.replace("predicted_mu_", "") for key in keys], vertical_spacing=0.1)
 
     for index, key in enumerate(keys):
         # ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
@@ -223,7 +235,7 @@ def plot_posterior_predictive_check(
         #         row=index + 1,
         #         col=1,
         #     )
-        linear_combinations = inference_data[key.replace("posterior_predictive", "linear_combination")]["predicted_mu"].stack(draws=("chain", "draw")).values
+        linear_combinations = inference_data['posterior'][key].stack(draws=("chain", "draw")).values
         for i in range(linear_combinations.shape[1]):
             fig.add_trace(
                 go.Scatter(
@@ -236,7 +248,7 @@ def plot_posterior_predictive_check(
                 col=1,
             )
 
-        observed = inference_data[key.replace("posterior_predictive", "observed")]["likelihood"].values
+        observed = inference_data['observed_data'][key.replace("predicted_mu", "likelihood")].values
         fig.add_trace(
             go.Scatter(
                 y=observed,
