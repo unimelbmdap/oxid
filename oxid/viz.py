@@ -218,10 +218,10 @@ def plot_posterior_predictive_check(
 
     keys = []
     for key in inference_data['posterior'].keys():
-        if key.startswith("predicted_mu_"):
+        if key.startswith("predicted_"):
             keys.append(key)
 
-    fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=[key.replace("predicted_mu_", "") for key in keys], vertical_spacing=0.1)
+    fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=[key.replace("predicted_", "") for key in keys], vertical_spacing=0.1)
 
     for index, key in enumerate(keys):
         # ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
@@ -235,11 +235,11 @@ def plot_posterior_predictive_check(
         #         row=index + 1,
         #         col=1,
         #     )
-        linear_combinations = inference_data['posterior'][key].stack(draws=("chain", "draw")).values
-        for i in range(linear_combinations.shape[1]):
+        predictions = inference_data['posterior'][key].stack(draws=("chain", "draw")).values
+        for i in range(predictions.shape[1]):
             fig.add_trace(
                 go.Scatter(
-                    y=linear_combinations[:, i],
+                    y=predictions[:, i],
                     line=dict(color="gray", width=0.5),
                     showlegend=False,
                     opacity=0.05,
@@ -248,7 +248,20 @@ def plot_posterior_predictive_check(
                 col=1,
             )
 
-        observed = inference_data['observed_data'][key.replace("predicted_mu", "likelihood")].values
+        linear_combinations = inference_data['posterior'][key.replace('predicted', 'linear_combination')].stack(draws=("chain", "draw")).values
+        for i in range(linear_combinations.shape[1]):
+            fig.add_trace(
+                go.Scatter(
+                    y=linear_combinations[:, i],
+                    line=dict(color="purple", width=0.5),
+                    showlegend=False,
+                    opacity=0.05,
+                ),
+                row=index + 1,
+                col=1,
+            )
+
+        observed = inference_data['observed_data'][key.replace("predicted", "likelihood")].values
         fig.add_trace(
             go.Scatter(
                 y=observed,

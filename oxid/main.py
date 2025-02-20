@@ -9,7 +9,7 @@ from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
 from .viz import plot_posterior_histograms
 from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
-from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT
+from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT, CORES_DEFAULT
 
 app = typer.Typer()
 
@@ -27,6 +27,7 @@ def infer(
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     chains:int=typer.Option(CHAINS_DEFAULT, help="Number of chains to run"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
+    cores:int=typer.Option(CORES_DEFAULT, help="Number of cores to use"),
     inference_data:Path=typer.Option(None, help="Path to save the inference data"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
     plot:Path=typer.Option(None, help="Path to save the posterior plot"),
@@ -51,6 +52,7 @@ def infer(
         chains=chains,
         tune=tune,
         draws=draws,
+        cores=cores,
     )
     
     # Print summary
@@ -80,6 +82,7 @@ def infer_csv(
     algoethite:bool=typer.Option(True, help="Whether to infer the proportion of al-goethite in the sample"),
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     chains:int=typer.Option(CHAINS_DEFAULT, help="Number of chains to run"),
+    cores:int=typer.Option(CORES_DEFAULT, help="Number of cores to use"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
     hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
@@ -129,6 +132,7 @@ def infer_csv(
             draws=draws,
             tune=tune,
             chains=chains,
+            cores=cores,
             gradients=gradients,
         )
     
