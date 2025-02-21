@@ -130,6 +130,16 @@ def infer_csv(
         rtsirm_path = get_path(rtsirm_column) if rtsirm else None
         zfcfc_path = get_path(zfcfc_column) if zfcfc else None
 
+        if inference_data_dir:
+            inference_data_dir = Path(inference_data_dir)
+            inference_data_dir.mkdir(parents=True, exist_ok=True)
+
+            path_components = [path.stem for path in [hysteresis_path, rtsirm_path, zfcfc_path] if path]
+            filename = "_".join(path_components) + ".nc"       
+            inference_data_path = inference_data_dir/filename
+            if inference_data_path.exists():
+                continue
+
         inference_data = run_inference(
             hysteresis_path=hysteresis_path,
             rtsirm_path=rtsirm_path,
@@ -143,14 +153,8 @@ def infer_csv(
         )
 
         if inference_data_dir:
-            inference_data_dir = Path(inference_data_dir)
-            inference_data_dir.mkdir(parents=True, exist_ok=True)
-
-            path_components = [path.stem for path in [hysteresis_path, rtsirm_path, zfcfc_path] if path]
-            filename = "_".join(path_components) + ".nc"       
-            path = inference_data_dir/filename
-            print(f"Writing inference data to {path}")     
-            inference_data.to_netcdf(path)
+            print(f"Writing inference data to {inference_data_path}")     
+            inference_data.to_netcdf(inference_data_path)
 
         # Print summary
         summary = az.summary(inference_data)
