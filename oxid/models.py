@@ -1,55 +1,78 @@
 import numpy as np
 from pathlib import Path
 from rich.console import Console
+import pytensor.tensor as pt
+from patsy import dmatrix
 
 from .data import IronOxide, collate_results, data_files_list
 
 console = Console()
 
 TUNE_DEFAULT=1_000
-DRAWS_DEFAULT=1_000
+DRAWS_DEFAULT=2_000
+CHAINS_DEFAULT=4
+CORES_DEFAULT=4
 
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
-    return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma"]
+    return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma_observations"]
 
 
-def build_model(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]) -> np.ndarray:
+def build_model_basis_functions(observations: list[np.ndarray], basis_functions_list: list[list[np.ndarray]], regimes:list[str], iron_oxides: list[IronOxide], num_knots=4) -> "pm.Model":
     import pymc as pm
+    import numpy as np
+
+    assert len(observations) == len(basis_functions_list) == len(regimes)
+
+    k = len(iron_oxides)
+
+    alpha = np.ones(k)
     
-    # Number of basis functions
-    k = len(basis_functions)
-
-    assert len(iron_oxides) == k
-
-    # Stack the basis functions into a (n_observations x k) matrix
-    X = np.column_stack(basis_functions)
-
-    # Alpha parameter for the Dirichlet distribution
-    alpha = np.ones(k)  # Uniform prior, can be modified to reflect different beliefs
-
-    # Create the PyMC model
     with pm.Model() as model:
-        # Define the Dirichlet prior for the proportions
+        # Proportions of iron oxides
         iron_oxide_proportions = pm.Dirichlet("iron_oxide_proportions", a=alpha)
-
-        # Give names to the proportions
         for i, iron_oxide in enumerate(iron_oxides):
             pm.Deterministic(f"{iron_oxide}_proportion", iron_oxide_proportions[i])
 
         total_iron_oxide_proportion = pm.Beta("total_iron_oxide_proportion", alpha=1, beta=1)
 
-        # Define the linear combination of the basis functions
-        linear_combination = pm.Deterministic("linear_combination", pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion)
+        # Residual independent noise
+        sigma_observations = pm.HalfNormal("sigma_observations", sigma=0.01)
 
-        # Likelihood: Assume the observations are normally distributed around the linear combination
-        sigma = pm.HalfCauchy("sigma", beta=1)
-        pm.Normal("likelihood", mu=linear_combination, sigma=sigma, observed=observed)
+        for observed, basis_functions, regime in zip(observations, basis_functions_list, regimes):
+            assert len(basis_functions) == k
+            X = np.column_stack(basis_functions)            
+
+            # Linear combination of basis functions
+            linear_combination = pm.Deterministic(f"linear_combination_{regime}", pm.math.dot(X, iron_oxide_proportions) / total_iron_oxide_proportion)
+
+
+            x_np = np.arange(len(observed))
+            knots = np.linspace(0, len(observed), num_knots)
+
+            # Create spline basis using Patsy's dmatrix
+            B = dmatrix(
+                "bs(year, knots=knots, degree=2, include_intercept=True) - 1",
+                {"year": x_np, "knots": knots[1:-1]},
+            )
+            B_tensor = pt.constant(B)
+
+            # Define weights for regression
+            w = pm.Normal(f"warping_w_{regime}", sigma=0.1, mu=0, shape=B.shape[1])
+
+            # Compute spline regression using dot product
+            warping = pm.Deterministic(f"warping_{regime}", pm.math.dot(B_tensor, w.T))
+            # warping = 0
+
+            predicted = pm.Deterministic(f"predicted_{regime}", linear_combination + warping)
+
+            # Likelihood
+            pm.Normal(f"likelihood_{regime}", mu=predicted, sigma=sigma_observations, observed=observed)
 
     return model
 
 
-def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]) -> np.ndarray:
+def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]):
     import pymc as pm
     
     # Number of basis functions
@@ -81,18 +104,19 @@ def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iro
 
     return model
 
+build_model = build_model_basis_functions
 
-def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT):
+def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT, chains:int=CHAINS_DEFAULT, cores:int=CORES_DEFAULT) -> "pm.InferenceData":
     import pymc as pm
 
     with model:
         # Sample from the posterior
-        inference_data = pm.sample(draws=draws, tune=tune, return_inferencedata=True)
+        inference_data = pm.sample(draws=draws, tune=tune, return_inferencedata=True, cores=cores, chains=chains)
     
     return inference_data
 
 
-def posterior_predictive_check(model, inference_data, regimes) -> np.ndarray:
+def posterior_predictive_check(model, inference_data, regimes:list[str]) -> np.ndarray:
     import pymc as pm
 
     with model:
@@ -100,11 +124,11 @@ def posterior_predictive_check(model, inference_data, regimes) -> np.ndarray:
 
     ppc_dict = {"posterior_predictive": ppc["posterior_predictive"]}
 
-    for dataset in regimes:
-        for regime, (start, end) in regimes[dataset].items():
-            ppc_dict[f"linear_combination_{dataset}_{regime}"] = inference_data.posterior["linear_combination"].isel(linear_combination_dim_0=slice(start, end))
-            ppc_dict[f"posterior_predictive_{dataset}_{regime}"] = ppc.posterior_predictive["likelihood"].isel(likelihood_dim_2=slice(start, end))
-            ppc_dict[f"observed_{dataset}_{regime}"] = inference_data["observed_data"]["likelihood"].isel(likelihood_dim_0=slice(start, end))
+    # for dataset in regimes:
+    #     for regime, (start, end) in regimes[dataset].items():
+    #         ppc_dict[f"linear_combination_{dataset}_{regime}"] = inference_data.posterior["predicted"].isel(predicted_dim_0=slice(start, end))
+    #         ppc_dict[f"posterior_predictive_{dataset}_{regime}"] = ppc.posterior_predictive["likelihood"].isel(likelihood_dim_2=slice(start, end))
+    #         ppc_dict[f"observed_{dataset}_{regime}"] = inference_data["observed_data"]["likelihood"].isel(likelihood_dim_0=slice(start, end))
 
     # Add posterior predictive samples to the inference data
     inference_data.add_groups(**ppc_dict)
@@ -118,6 +142,8 @@ def run_inference(
     iron_oxides: list[IronOxide],
     draws: int = DRAWS_DEFAULT,
     tune: int = TUNE_DEFAULT,
+    chains: int = CHAINS_DEFAULT,
+    cores: int = CORES_DEFAULT,
     gradients: bool = False,
 ) -> np.ndarray:
     console.rule("OxID Inference")
@@ -134,8 +160,8 @@ def run_inference(
     # collate results
     observed, basis_functions, regimes = collate_results(data_files, iron_oxides, gradients=gradients)
 
-    model = build_model(observed, basis_functions, iron_oxides)
-    inference_data = sample_posterior(model, draws=draws, tune=tune)
+    model = build_model(observed, basis_functions, regimes, iron_oxides)
+    inference_data = sample_posterior(model, draws=draws, tune=tune, chains=chains, cores=cores)
     posterior_predictive_check(model, inference_data, regimes)
 
     return inference_data
