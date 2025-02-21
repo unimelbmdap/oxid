@@ -83,6 +83,7 @@ def infer_csv(
     draws:int=typer.Option(DRAWS_DEFAULT, help="Number of samples to draw from the posterior"),
     chains:int=typer.Option(CHAINS_DEFAULT, help="Number of chains to run"),
     cores:int=typer.Option(CORES_DEFAULT, help="Number of cores to use"),
+    inference_data_dir:Path=typer.Option(None, help="Path to a directory to save the inference data"),
     tune:int=typer.Option(TUNE_DEFAULT, help="Number of samples to tune the sampler"),
     hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
@@ -120,14 +121,19 @@ def infer_csv(
     variable_names = get_variable_names(iron_oxides)
 
     base_dir = csv.parent.resolve()
-    def get_path(column) -> Path|None:
-        return base_dir/row[column] if column and row[column] else None
         
     for i, row in df.iterrows():
+        def get_path(column) -> Path|None:
+            return base_dir/row[column] if column and row[column] else None
+
+        hysteresis_path = get_path(hysteresis_column) if hysteresis else None
+        rtsirm_path = get_path(rtsirm_column) if rtsirm else None
+        zfcfc_path = get_path(zfcfc_column) if zfcfc else None
+
         inference_data = run_inference(
-            hysteresis_path=get_path(hysteresis_column) if hysteresis else None,
-            rtsirm_path=get_path(rtsirm_column) if rtsirm else None,
-            zfcfc_path=get_path(zfcfc_column) if zfcfc else None,
+            hysteresis_path=hysteresis_path,
+            rtsirm_path=rtsirm_path,
+            zfcfc_path=zfcfc_path,
             iron_oxides=iron_oxides,
             draws=draws,
             tune=tune,
@@ -135,7 +141,17 @@ def infer_csv(
             cores=cores,
             gradients=gradients,
         )
-    
+
+        if inference_data_dir:
+            inference_data_dir = Path(inference_data_dir)
+            inference_data_dir.mkdir(parents=True, exist_ok=True)
+
+            path_components = [path.stem for path in [hysteresis_path, rtsirm_path, zfcfc_path] if path]
+            filename = "_".join(path_components) + ".nc"       
+            path = inference_data_dir/filename
+            print(f"Writing inference data to {path}")     
+            inference_data.to_netcdf(path)
+
         # Print summary
         summary = az.summary(inference_data)
         summary = summary[summary.index.isin(variable_names)]
