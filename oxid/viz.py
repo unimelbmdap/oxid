@@ -158,7 +158,7 @@ def plot_posterior_histograms(
     fig = go.Figure()
 
     for iron_oxide in IronOxide:
-        key = f"{iron_oxide}_proportion"
+        key = f"{iron_oxide}_factor"
         if key in inference_data.posterior:
             data = inference_data.posterior[key].values.flatten()
             mean_value = np.mean(data)

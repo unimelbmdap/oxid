@@ -15,7 +15,7 @@ CORES_DEFAULT=4
 
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
-    return [f"{iron_oxide}_proportion" for iron_oxide in iron_oxides] + ["total_iron_oxide_proportion", "sigma_observations"]
+    return [f"{iron_oxide}_factor" for iron_oxide in iron_oxides] + ["sigma_observations"]
 
 
 def build_model_basis_functions(observations: list[np.ndarray], basis_functions_list: list[list[np.ndarray]], regimes:list[str], iron_oxides: list[IronOxide], num_knots=4) -> "pm.Model":
@@ -72,6 +72,62 @@ def build_model_basis_functions(observations: list[np.ndarray], basis_functions_
     return model
 
 
+def build_model_rescale(observations: list[np.ndarray], basis_functions_list: list[list[np.ndarray]], regimes:list[str], iron_oxides: list[IronOxide], num_knots=4) -> "pm.Model":
+    import pymc as pm
+    import numpy as np
+
+    assert len(observations) == len(basis_functions_list) == len(regimes)
+
+    k = len(iron_oxides)
+    
+    with pm.Model() as model:
+        # Proportions of iron oxides
+        factors = pm.Beta("factors", alpha=1.0, beta=1.0, shape=k)
+        for i, iron_oxide in enumerate(iron_oxides):
+            pm.Deterministic(f"{iron_oxide}_factor", factors[i])
+
+        # Residual independent noise
+        sigma_observations = pm.HalfNormal("sigma_observations", sigma=0.01)
+
+        for observed, basis_functions, regime in zip(observations, basis_functions_list, regimes):
+            assert len(basis_functions) == k
+            
+
+            def rescale(array):
+                return array / array.max()
+                return (array - array.min())/(array.max()-array.min())    
+
+            observed = rescale(observed)
+            X = np.column_stack([rescale(basis_function) for basis_function in basis_functions])
+
+            # Linear combination of basis functions
+            linear_combination = pm.Deterministic(f"linear_combination_{regime}", pm.math.dot(X, factors))
+
+            x_np = np.arange(len(observed))
+            knots = np.linspace(0, len(observed), num_knots)
+
+            # Create spline basis using Patsy's dmatrix
+            B = dmatrix(
+                "bs(year, knots=knots, degree=2, include_intercept=True) - 1",
+                {"year": x_np, "knots": knots[1:-1]},
+            )
+            B_tensor = pt.constant(B)
+
+            # Define weights for regression
+            # w = pm.Normal(f"warping_w_{regime}", sigma=0.1, mu=0, shape=B.shape[1])
+
+            # Compute spline regression using dot product
+            # warping = pm.Deterministic(f"warping_{regime}", pm.math.dot(B_tensor, w.T))
+            warping = 0
+
+            predicted = pm.Deterministic(f"predicted_{regime}", linear_combination + warping)
+
+            # Likelihood
+            pm.Normal(f"likelihood_{regime}", mu=predicted, sigma=sigma_observations, observed=observed)
+
+    return model
+
+
 def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iron_oxides:list[IronOxide]):
     import pymc as pm
     
@@ -104,7 +160,8 @@ def build_model_other(observed:np.ndarray, basis_functions:list[np.ndarray], iro
 
     return model
 
-build_model = build_model_basis_functions
+# build_model = build_model_basis_functions
+build_model = build_model_rescale
 
 def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT, chains:int=CHAINS_DEFAULT, cores:int=CORES_DEFAULT) -> "pm.InferenceData":
     import pymc as pm
