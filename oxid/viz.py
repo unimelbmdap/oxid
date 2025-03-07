@@ -155,56 +155,67 @@ def plot_posterior_histograms(
     show: bool = False,
     output: Path | None = None,
 ) -> go.Figure:
-    fig = go.Figure()
+    regimes = ["Heating", "Cooling", "ZFC", "FC"]
+    fig = make_subplots(rows=len(regimes), cols=1, shared_xaxes=True, subplot_titles=regimes, vertical_spacing=0.03)
 
-    for iron_oxide in IronOxide:
-        key = f"{iron_oxide}_factor"
-        if key in inference_data.posterior:
-            data = inference_data.posterior[key].values.flatten()
-            mean_value = np.mean(data)
+    for regime in regimes:
+        row = regimes.index(regime) + 1
+        for iron_oxide in IronOxide:
+            key = f"{iron_oxide}_{regime}_factor"
+            if key in inference_data.posterior:
+                data = inference_data.posterior[key].values.flatten()
+                mean_value = np.mean(data)
 
-            # Compute histogram bins manually
-            bin_heights, bin_edges = np.histogram(data, bins="auto", density=True)
-            bin_width = np.diff(bin_edges)[0]  # Get uniform bin width
-            max_y = max(bin_heights) if len(bin_heights) > 0 else 0  # Find max bin height
+                # Compute histogram bins manually
+                bin_heights, bin_edges = np.histogram(data, bins="auto", density=True)
+                bin_width = np.diff(bin_edges)[0]  # Get uniform bin width
+                max_y = max(bin_heights) if len(bin_heights) > 0 else 0  # Find max bin height
 
-            # Set bin centers by shifting the edges by half the bin width
-            bin_centers = bin_edges[:-1] + bin_width / 2
+                # Set bin centers by shifting the edges by half the bin width
+                bin_centers = bin_edges[:-1] + bin_width / 2
 
-            # Use go.Bar with width equal to bin width to remove gaps
-            fig.add_trace(
-                go.Bar(
-                    x=bin_centers,
-                    y=bin_heights * bin_width,  # Normalize to match Plotly's probability scaling
-                    width=bin_width,  # Set bar width to be the bin width
-                    name=iron_oxide.title(),
-                    marker=dict(color=iron_oxide.color, line_width=0),
+                # Use go.Bar with width equal to bin width to remove gaps
+                fig.add_trace(
+                    go.Bar(
+                        x=bin_centers,
+                        y=bin_heights * bin_width,  # Normalize to match Plotly's probability scaling
+                        width=bin_width,  # Set bar width to be the bin width
+                        name=iron_oxide.title(),
+                        marker=dict(color=iron_oxide.color, line_width=0),
+                        showlegend=row==1,
+                    ),
+                    row=row,
+                    col=1,
                 )
-            )
 
-            # Add annotation at the top of the highest bin
-            fig.add_annotation(
-                x=mean_value,
-                y=max_y * bin_width * 1.05,  # Slightly above the highest bar
-                xref="x",
-                yref="y",
-                text=f"{mean_value:.2%}",  # Convert mean to percentage
-                showarrow=False,
-                arrowhead=0,
-                arrowcolor=iron_oxide.color,
-                font=dict(color=iron_oxide.color),
-            )
+                # Add annotation at the top of the highest bin
+                fig.add_annotation(
+                    x=mean_value,
+                    y=max_y * bin_width * 1.05,  # Slightly above the highest bar
+                    xref="x",
+                    yref="y",
+                    text=f"{mean_value:.2%}",  # Convert mean to percentage
+                    showarrow=False,
+                    arrowhead=0,
+                    arrowcolor=iron_oxide.color,
+                    font=dict(color=iron_oxide.color),
+                    row=row,
+                    col=1,
+                )
 
     # Update layout to remove gaps between bars
     fig.update_layout(
         barmode="overlay",  # Overlay histograms
         bargap=0.0,  # No space between bars
         bargroupgap=0.0,  # No space between histogram groups
-        xaxis_title_text="Proportion",
+        # xaxis_title_text="Factor",
         xaxis_tickformat=".1%",
     )
 
     format_fig(fig)
+    fig.update_layout(
+        height=len(regimes) * 200 + 200
+    )
     process_fig(fig, output, show)
     
     return fig

@@ -15,7 +15,11 @@ CORES_DEFAULT=4
 
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
-    return [f"{iron_oxide}_factor" for iron_oxide in iron_oxides] + ["sigma_observations"]
+    regimes = ["Heating", "Cooling", "ZFC", "FC"]
+    names = ["sigma_observations"]
+    for regime in regimes:
+        names += [f"{iron_oxide}_{regime}_factor" for iron_oxide in iron_oxides]
+    return names
 
 
 def build_model_basis_functions(observations: list[np.ndarray], basis_functions_list: list[list[np.ndarray]], regimes:list[str], iron_oxides: list[IronOxide], num_knots=4) -> "pm.Model":
@@ -81,24 +85,27 @@ def build_model_rescale(observations: list[np.ndarray], basis_functions_list: li
     k = len(iron_oxides)
     
     with pm.Model() as model:
-        # Proportions of iron oxides
-        factors = pm.Beta("factors", alpha=1.0, beta=1.0, shape=k)
-        for i, iron_oxide in enumerate(iron_oxides):
-            pm.Deterministic(f"{iron_oxide}_factor", factors[i])
-
         # Residual independent noise
         sigma_observations = pm.HalfNormal("sigma_observations", sigma=0.01)
 
         for observed, basis_functions, regime in zip(observations, basis_functions_list, regimes):
             assert len(basis_functions) == k
             
-
             def rescale(array):
-                return array / array.max()
                 return (array - array.min())/(array.max()-array.min())    
 
             observed = rescale(observed)
-            X = np.column_stack([rescale(basis_function) for basis_function in basis_functions])
+
+            offsets = pm.Normal(f"{regime}_offsets", mu=0, sigma=0.1, shape=k)
+            for i, iron_oxide in enumerate(iron_oxides):
+                pm.Deterministic(f"{iron_oxide}_{regime}_offset", offsets[i])
+
+            # Proportions of iron oxides
+            factors = pm.Beta(f"{regime}_factors", alpha=1.0, beta=1.0, shape=k)
+            for i, iron_oxide in enumerate(iron_oxides):
+                pm.Deterministic(f"{iron_oxide}_{regime}_factor", factors[i])
+
+            X = np.column_stack([rescale(basis_function) for basis_function in basis_functions]) + offsets
 
             # Linear combination of basis functions
             linear_combination = pm.Deterministic(f"linear_combination_{regime}", pm.math.dot(X, factors))
