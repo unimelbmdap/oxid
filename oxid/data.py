@@ -236,14 +236,17 @@ def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     return iron_oxide.standard_data(measurement)
 
 
-def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradients:bool=False) -> tuple[list[np.ndarray], list[list[np.ndarray]], list[str]]:
+def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradients:bool=False) -> tuple[list[np.ndarray], list[list[np.ndarray]], list[str], list[str]]:
     observations = []
     basis_functions = []
     regimes = []
+    datatypes = []
     for data in data_files: 
+        datatype = type(data).__name__
         result = data.interpolate_standards(iron_oxides)
         for regime, value in result.items():
             _, y, standards = value
+            datatypes.append(datatype)
             
             if gradients:
                 y = np.diff(y)
@@ -260,7 +263,7 @@ def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradient
                 regime_basis_functions.append(basis_function)
             basis_functions.append(regime_basis_functions)
 
-    return observations, basis_functions, regimes
+    return observations, basis_functions, regimes, datatypes
 
 
 def data_files_list(

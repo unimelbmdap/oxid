@@ -155,13 +155,20 @@ def plot_posterior_histograms(
     show: bool = False,
     output: Path | None = None,
 ) -> go.Figure:
-    regimes = ["Heating", "Cooling", "ZFC", "FC"]
-    fig = make_subplots(rows=len(regimes), cols=1, shared_xaxes=True, subplot_titles=regimes, vertical_spacing=0.03)
+    # Get datatypes from the posterior keys
+    datatypes = []
+    for key in inference_data.posterior.keys():
+        if key.endswith("_factor"):
+            datatype = key.split("_")[1]
+            if datatype not in datatypes:
+                datatypes.append(datatype)
 
-    for regime in regimes:
-        row = regimes.index(regime) + 1
+    fig = make_subplots(rows=len(datatypes), cols=1, shared_xaxes=True, subplot_titles=datatypes, vertical_spacing=0.03)
+
+    for datatype in datatypes:
+        row = datatypes.index(datatype) + 1
         for iron_oxide in IronOxide:
-            key = f"{iron_oxide}_{regime}_factor"
+            key = f"{iron_oxide}_{datatype}_factor"
             if key in inference_data.posterior:
                 data = inference_data.posterior[key].values.flatten()
                 mean_value = np.mean(data)
@@ -214,7 +221,7 @@ def plot_posterior_histograms(
 
     format_fig(fig)
     fig.update_layout(
-        height=len(regimes) * 200 + 200
+        height=len(datatypes) * 200 + 200
     )
     process_fig(fig, output, show)
     

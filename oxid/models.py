@@ -3,6 +3,7 @@ from pathlib import Path
 from rich.console import Console
 import pytensor.tensor as pt
 from patsy import dmatrix
+from collections import defaultdict
 
 from .data import IronOxide, collate_results, data_files_list
 
@@ -76,19 +77,21 @@ def build_model_basis_functions(observations: list[np.ndarray], basis_functions_
     return model
 
 
-def build_model_rescale(observations: list[np.ndarray], basis_functions_list: list[list[np.ndarray]], regimes:list[str], iron_oxides: list[IronOxide], num_knots=4) -> "pm.Model":
+def build_model_rescale(observations: list[np.ndarray], basis_functions_list: list[list[np.ndarray]], regimes:list[str], datatypes:list[str], iron_oxides: list[IronOxide], num_knots=4) -> "pm.Model":
     import pymc as pm
     import numpy as np
 
-    assert len(observations) == len(basis_functions_list) == len(regimes)
+    assert len(observations) == len(basis_functions_list) == len(regimes) == len(datatypes)
 
     k = len(iron_oxides)
+
+    variables = dict()
     
     with pm.Model() as model:
         # Residual independent noise
         sigma_observations = pm.HalfNormal("sigma_observations", sigma=0.01)
 
-        for observed, basis_functions, regime in zip(observations, basis_functions_list, regimes):
+        for observed, basis_functions, regime, datatype in zip(observations, basis_functions_list, regimes, datatypes):
             assert len(basis_functions) == k
             
             def rescale(array):
@@ -96,14 +99,22 @@ def build_model_rescale(observations: list[np.ndarray], basis_functions_list: li
 
             observed = rescale(observed)
 
-            offsets = pm.Normal(f"{regime}_offsets", mu=0, sigma=0.1, shape=k)
-            for i, iron_oxide in enumerate(iron_oxides):
-                pm.Deterministic(f"{iron_oxide}_{regime}_offset", offsets[i])
+            key = f"{datatype}_offsets"
+            if key not in variables:
+                variables[key] = pm.Normal(key, mu=0, sigma=0.1, shape=k)
+                for i, iron_oxide in enumerate(iron_oxides):
+                    pm.Deterministic(f"{iron_oxide}_{datatype}_offset", variables[key][i])
+            offsets = variables[key]
 
             # Proportions of iron oxides
-            factors = pm.Beta(f"{regime}_factors", alpha=1.0, beta=1.0, shape=k)
-            for i, iron_oxide in enumerate(iron_oxides):
-                pm.Deterministic(f"{iron_oxide}_{regime}_factor", factors[i])
+            key = f"{datatype}_factors"
+            if key not in variables:
+                # variables[key] = pm.HalfNormal(key, sigma=1, shape=k)
+                variables[key] = pm.Uniform(key, lower=0, upper=2.0, shape=k)
+                # variables[key] = pm.Beta(key, alpha=1.0, beta=1.0, shape=k)
+                for i, iron_oxide in enumerate(iron_oxides):
+                    pm.Deterministic(f"{iron_oxide}_{datatype}_factor", variables[key][i])
+            factors = variables[key]
 
             X = np.column_stack([rescale(basis_function) for basis_function in basis_functions]) + offsets
 
@@ -180,7 +191,7 @@ def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT, chai
     return inference_data
 
 
-def posterior_predictive_check(model, inference_data, regimes:list[str]) -> np.ndarray:
+def posterior_predictive_check(model, inference_data, regimes:list[str], datatypes:list[str]) -> np.ndarray:
     import pymc as pm
 
     with model:
@@ -222,10 +233,10 @@ def run_inference(
     data_files = data_files_list(hysteresis_path, rtsirm_path, zfcfc_path)
 
     # collate results
-    observed, basis_functions, regimes = collate_results(data_files, iron_oxides, gradients=gradients)
+    observed, basis_functions, regimes, datatypes = collate_results(data_files, iron_oxides, gradients=gradients)
 
-    model = build_model(observed, basis_functions, regimes, iron_oxides)
+    model = build_model(observed, basis_functions, regimes, datatypes, iron_oxides)
     inference_data = sample_posterior(model, draws=draws, tune=tune, chains=chains, cores=cores)
-    posterior_predictive_check(model, inference_data, regimes)
+    posterior_predictive_check(model, inference_data, regimes, datatypes)
 
     return inference_data

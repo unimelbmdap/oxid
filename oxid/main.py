@@ -202,9 +202,9 @@ def plot_inputs(
     iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
 
     # collate results
-    observed, basis_functions, regimes = collate_results(data_files, iron_oxides, gradients=gradients)
+    observed, basis_functions, regimes, datatypes = collate_results(data_files, iron_oxides, gradients=gradients)
 
-    plot_inputs_viz(observed, basis_functions, regimes, iron_oxides, rescale=rescale, show=show, output=output, mode=mode)
+    plot_inputs_viz(observed, basis_functions, regimes, datatypes, iron_oxides, rescale=rescale, show=show, output=output, mode=mode)
 
 
 @app.command()
