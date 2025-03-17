@@ -97,7 +97,8 @@ def build_model_rescale(observations: list[np.ndarray], basis_functions_list: li
             def rescale(array):
                 return (array - array.min())/(array.max()-array.min())    
 
-            observed = rescale(observed)
+            # observed = rescale(observed)
+            # basis_functions = [rescale(basis_function) for basis_function in basis_functions]
 
             key = f"{datatype}_offsets"
             if key not in variables:
@@ -109,17 +110,17 @@ def build_model_rescale(observations: list[np.ndarray], basis_functions_list: li
             # Proportions of iron oxides
             key = f"{datatype}_factors"
             if key not in variables:
-                # variables[key] = pm.HalfNormal(key, sigma=1, shape=k)
-                variables[key] = pm.Uniform(key, lower=0, upper=2.0, shape=k)
+                variables[key] = pm.HalfNormal(key, sigma=10, shape=k)
+                # variables[key] = pm.Uniform(key, lower=0, upper=2.0, shape=k)
                 # variables[key] = pm.Beta(key, alpha=1.0, beta=1.0, shape=k)
                 for i, iron_oxide in enumerate(iron_oxides):
                     pm.Deterministic(f"{iron_oxide}_{datatype}_factor", variables[key][i])
             factors = variables[key]
 
-            X = np.column_stack([rescale(basis_function) for basis_function in basis_functions]) + offsets
+            X = np.column_stack(basis_functions) + offsets
 
             # Linear combination of basis functions
-            linear_combination = pm.Deterministic(f"linear_combination_{regime}", pm.math.dot(X, factors))
+            linear_combination = pm.Deterministic(f"linear_combination_{regime}", pm.math.dot(X, factors)  )
 
             x_np = np.arange(len(observed))
             knots = np.linspace(0, len(observed), num_knots)
