@@ -1,7 +1,9 @@
 import typer
 from pathlib import Path
 import pandas as pd
+import numpy as np
 import arviz as az
+from collections import defaultdict
 
 from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
 from .viz import plot_moment
@@ -12,6 +14,18 @@ from .viz import plot_posterior_predictive_check as plot_posterior_predictive_ch
 from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT, CORES_DEFAULT
 
 app = typer.Typer()
+
+
+def noramlize_column_name(name):
+    return name.lower().replace("-", "")
+
+
+def find_column(df, name):
+    name = noramlize_column_name(name)
+    for column in df.columns:
+        if name in noramlize_column_name(column):
+            return column
+    return None
 
 
 @app.command()
@@ -103,16 +117,6 @@ def infer_csv(
 
     # Create list of Iron Oxide Types to use
     iron_oxides = iron_oxides_list(goethite, hematite, magnetite, maghemite, algoethite)
-
-    def noramlize_column_name(name):
-        return name.lower().replace("-", "")
-
-    def find_column(df, name):
-        name = noramlize_column_name(name)
-        for column in df.columns:
-            if name in noramlize_column_name(column):
-                return column
-        return None
     
     hysteresis_column = find_column(df, "hysteresis")
     rtsirm_column = find_column(df, "rtsirm")
@@ -269,3 +273,117 @@ def plot_posterior_predictive_check(
     """ Plot the posterior predictive check of the iron oxide proportions """
     inference_data = az.from_netcdf(inference_data)
     plot_posterior_predictive_check_viz(inference_data, show=show, output=output)
+
+
+@app.command()
+def pca(
+    csv:Path = typer.Argument(help="Path to the file with the paths"),
+    hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
+    rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
+    zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
+    points:int=80,
+):
+    df = pd.read_csv(csv)
+    
+    hysteresis_column = find_column(df, "hysteresis")
+    rtsirm_column = find_column(df, "rtsirm")
+    zfcfc_column = find_column(df, "zfcfc")
+
+    # variable_names = get_variable_names(iron_oxides)
+
+    base_dir = csv.parent.resolve()
+
+    results = defaultdict(dict)
+    
+    regimes = set()
+
+    min_values = dict()
+    max_values = dict()        
+
+    for i, row in df.iterrows():
+        def get_path(column) -> Path|None:
+            return base_dir/row[column] if column and row[column] else None
+
+        hysteresis_path = get_path(hysteresis_column) if hysteresis else None
+        rtsirm_path = get_path(rtsirm_column) if rtsirm else None
+        zfcfc_path = get_path(zfcfc_column) if zfcfc else None
+
+        print(rtsirm_path, zfcfc_path)
+        datasets = [
+            RTSIRM(rtsirm_path),
+            ZFCFC(zfcfc_path),
+            Hysteresis(hysteresis_path),
+        ]
+
+        results[i].update(row)
+
+        for dataset in datasets:
+            if not dataset.path: 
+                continue
+
+            data = dataset.extract()
+            regimes.update(data.keys())
+            max_value = np.max([arrays[1].max() for arrays in data.values()])
+            min_value = np.min([arrays[1].min() for arrays in data.values()])
+            # print('min', 'max', min_value, max_value)
+
+            for regime, arrays in data.items():
+                min_value = arrays[0].min()
+                if regime in min_values:
+                    min_values[regime] = max(min_value, min_values[regime])
+                else:
+                    min_values[regime] = min_value
+                max_value = arrays[0].max()
+                if regime in max_values:
+                    max_values[regime] = min(max_value, max_values[regime])
+                else:
+                    max_values[regime] = max_value
+
+
+                # arrays = arrays[0], (arrays[1]-min_value)#/(max_value-min_value)
+                arrays = arrays[0], (arrays[1])/arrays[1].max()
+                print(regime, min_values[regime], max_values[regime] )
+                results[i][regime] = arrays
+    
+    breakpoint()
+    x_values = dict()
+    for regime in regimes:
+        x_values[regime] = np.linspace(min_values[regime], max_values[regime], points)
+
+    vectors = []
+    for values in results.values():
+        to_concatenate = []
+        for regime in regimes:
+            x, y = values[regime]
+
+            sorted_indices = np.argsort(x)
+            x = x[sorted_indices]
+            y = y[sorted_indices]
+
+            interpolated = np.interp(x_values[regime], x, y)
+            fft_values = np.fft.fft(interpolated)
+            positive_magnitudes = np.abs(fft_values[:len(fft_values)//2])
+            features = positive_magnitudes[:20]
+            # features = interpolated
+            # features = interpolated/interpolated.max()
+
+            to_concatenate.append(features)
+        vectors.append(np.concatenate(to_concatenate))
+    
+    vectors = np.asarray(vectors)
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    pca.fit(vectors)
+    transformed_data = pca.transform(vectors)
+    print("Principal Components:")
+    print(pca.components_)
+
+    print("\nExplained Variance Ratio:")
+    print(pca.explained_variance_ratio_)
+
+    names = [results[i]["RTSIRM"] for i in results]
+    color = [results[i]["Cluster"] for i in results]
+    import plotly.express as px
+    fig = px.scatter(x=transformed_data[:,0], y=transformed_data[:,1], color=color, hover_data=[names])
+    fig.update_traces(marker_size=10)
+    fig.show()

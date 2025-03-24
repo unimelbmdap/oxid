@@ -28,6 +28,8 @@ class Data():
         components = mass_line.split(",")
         assert components[2] == "SAMPLE_MASS"
         mass = float(components[1])
+        if not pd.api.types.is_numeric_dtype(df['Moment (emu)']):
+            df['Moment (emu)'] = df['Moment (emu)'].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
         df['Moment (A⋅m2/kg)'] = df['Moment (emu)'] / mass * 1000
 
         return df
@@ -124,6 +126,9 @@ class RTSIRM(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+        if not pd.api.types.is_numeric_dtype(df[self.x_axis]):
+            df[self.x_axis] = df[self.x_axis].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+
         temp_diff_positive = df[self.x_axis].diff().fillna(0) > 0
         heating_df = df[temp_diff_positive]
         cooling_df = df[~temp_diff_positive]
@@ -153,6 +158,9 @@ class ZFCFC(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+        if not pd.api.types.is_numeric_dtype(df["Temperature (K)"]):
+            df["Temperature (K)"] = df["Temperature (K)"].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+
         temp_diff = df["Temperature (K)"].diff()
         transition_index = temp_diff[temp_diff < 0].index[0]
 
