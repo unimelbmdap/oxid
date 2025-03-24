@@ -39,7 +39,7 @@ class Data():
     def x_axis(self) -> str:
         raise NotImplementedError
     
-    def interpolate_standards(self, iron_oxides:list["IronOxide"]) -> np.ndarray:
+    def interpolate_standards(self, iron_oxides:list["IronOxide"], npoints:int=0) -> np.ndarray:
         my_extracted = self.extract()
         standards = [IronOxide.get(iron_oxide).standard_data(self.__class__.__name__.lower()).extract() for iron_oxide in iron_oxides]
 
@@ -66,6 +66,12 @@ class Data():
         result = {}
         for key in my_extracted.keys():
             x, y = my_extracted[key]
+
+            if npoints:
+                new_x = np.linspace(x.min(), x.max(), npoints)
+                y = np.interp(new_x, x, y)
+                x = new_x
+
             interpolated_array = []
             for standard_extracted in standards:
                 standard_x, standard_y = standard_extracted[key]
