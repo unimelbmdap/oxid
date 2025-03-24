@@ -163,7 +163,7 @@ def plot_posterior_histograms(
             if datatype not in datatypes:
                 datatypes.append(datatype)
 
-    fig = make_subplots(rows=len(datatypes), cols=1, shared_xaxes=True, subplot_titles=datatypes, vertical_spacing=0.03)
+    fig = make_subplots(rows=len(datatypes), cols=1, shared_xaxes=True, subplot_titles=datatypes, vertical_spacing=0.1)
 
     for datatype in datatypes:
         row = datatypes.index(datatype) + 1
@@ -201,7 +201,7 @@ def plot_posterior_histograms(
                     y=max_y * bin_width * 1.05,  # Slightly above the highest bar
                     xref="x",
                     yref="y",
-                    text=f"{mean_value:.2%}",  # Convert mean to percentage
+                    text=f"{mean_value:.2f}",
                     showarrow=False,
                     arrowhead=0,
                     arrowcolor=iron_oxide.color,
@@ -216,8 +216,11 @@ def plot_posterior_histograms(
         bargap=0.0,  # No space between bars
         bargroupgap=0.0,  # No space between histogram groups
         # xaxis_title_text="Factor",
-        xaxis_tickformat=".1%",
+        xaxis_tickformat=".1f",
     )
+    for i in range(1, len(datatypes) + 1):
+        fig.update_yaxes(title_text="Density", row=i, col=1)
+    fig.update_xaxes(title_text="Scale Factor", row=i, col=1)
 
     format_fig(fig)
     fig.update_layout(
@@ -266,7 +269,7 @@ def plot_posterior_predictive_check(
                 col=1,
             )
 
-        linear_combinations = inference_data['posterior'][key.replace('predicted', 'linear_combination')].stack(draws=("chain", "draw")).values
+        linear_combinations = inference_data['posterior'][key].stack(draws=("chain", "draw")).values
         for i in range(linear_combinations.shape[1]):
             fig.add_trace(
                 go.Scatter(

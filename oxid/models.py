@@ -5,21 +5,23 @@ import pytensor.tensor as pt
 from patsy import dmatrix
 from collections import defaultdict
 
-from .data import IronOxide, collate_results, data_files_list
+from .data import IronOxide, collate_results, data_files_list, DATA_TYPES
 
 console = Console()
 
 TUNE_DEFAULT=1_000
-DRAWS_DEFAULT=2_000
+DRAWS_DEFAULT=1_000
 CHAINS_DEFAULT=4
 CORES_DEFAULT=4
 
 
 def get_variable_names(iron_oxides:list[IronOxide]) -> list[str]:
-    regimes = ["Heating", "Cooling", "ZFC", "FC"]
     names = ["sigma_observations"]
-    for regime in regimes:
-        names += [f"{iron_oxide}_{regime}_factor" for iron_oxide in iron_oxides]
+    for datatype in DATA_TYPES.values():
+        datatype_name = datatype.__name__
+        names += [f"{datatype_name}_offset"]
+        names += [f"{iron_oxide}_{datatype_name}_offset" for iron_oxide in iron_oxides]
+        names += [f"{iron_oxide}_{datatype_name}_factor" for iron_oxide in iron_oxides]
     return names
 
 
@@ -89,17 +91,11 @@ def build_model_rescale(observations: list[np.ndarray], basis_functions_list: li
     
     with pm.Model() as model:
         # Residual independent noise
-        sigma_observations = pm.HalfNormal("sigma_observations", sigma=0.01)
+        sigma_observations = pm.HalfNormal("sigma_observations", sigma=1)
 
         for observed, basis_functions, regime, datatype in zip(observations, basis_functions_list, regimes, datatypes):
             assert len(basis_functions) == k
             
-            def rescale(array):
-                return (array - array.min())/(array.max()-array.min())    
-
-            # observed = rescale(observed)
-            # basis_functions = [rescale(basis_function) for basis_function in basis_functions]
-
             key = f"{datatype}_offsets"
             if key not in variables:
                 variables[key] = pm.Normal(key, mu=0, sigma=0.1, shape=k)
@@ -110,36 +106,26 @@ def build_model_rescale(observations: list[np.ndarray], basis_functions_list: li
             # Proportions of iron oxides
             key = f"{datatype}_factors"
             if key not in variables:
-                variables[key] = pm.HalfNormal(key, sigma=10, shape=k)
-                # variables[key] = pm.Uniform(key, lower=0, upper=2.0, shape=k)
-                # variables[key] = pm.Beta(key, alpha=1.0, beta=1.0, shape=k)
+                # inclusion = pm.Bernoulli(f"{key}_inclusion", p=0.5, shape=k)
+                # slab = pm.Gamma(f"{key}_slab", alpha=2, beta=2, shape=k)
+                # variables[key] = pm.Deterministic(key, inclusion * slab)
+
+                variables[key] = pm.HalfNormal(key, sigma=1, shape=k)
                 for i, iron_oxide in enumerate(iron_oxides):
                     pm.Deterministic(f"{iron_oxide}_{datatype}_factor", variables[key][i])
             factors = variables[key]
 
+            # offsets = 0
             X = np.column_stack(basis_functions) + offsets
 
+            key = f"{datatype}_offset"
+            if key not in variables:
+                variables[key] = pm.Normal(key, mu=0, sigma=0.1)
+            datatype_offset = variables[key]
+            # datatype_offset = 0
+
             # Linear combination of basis functions
-            linear_combination = pm.Deterministic(f"linear_combination_{regime}", pm.math.dot(X, factors)  )
-
-            x_np = np.arange(len(observed))
-            knots = np.linspace(0, len(observed), num_knots)
-
-            # Create spline basis using Patsy's dmatrix
-            B = dmatrix(
-                "bs(year, knots=knots, degree=2, include_intercept=True) - 1",
-                {"year": x_np, "knots": knots[1:-1]},
-            )
-            B_tensor = pt.constant(B)
-
-            # Define weights for regression
-            # w = pm.Normal(f"warping_w_{regime}", sigma=0.1, mu=0, shape=B.shape[1])
-
-            # Compute spline regression using dot product
-            # warping = pm.Deterministic(f"warping_{regime}", pm.math.dot(B_tensor, w.T))
-            warping = 0
-
-            predicted = pm.Deterministic(f"predicted_{regime}", linear_combination + warping)
+            predicted = pm.Deterministic(f"predicted_{regime}", pm.math.dot(X, factors) + datatype_offset)
 
             # Likelihood
             pm.Normal(f"likelihood_{regime}", mu=predicted, sigma=sigma_observations, observed=observed)
@@ -187,7 +173,8 @@ def sample_posterior(model, draws:int=DRAWS_DEFAULT, tune:int=TUNE_DEFAULT, chai
 
     with model:
         # Sample from the posterior
-        inference_data = pm.sample(draws=draws, tune=tune, return_inferencedata=True, cores=cores, chains=chains)
+        # nuts=dict(max_treedepth=14), 
+        inference_data = pm.sample(target_accept=0.95, draws=draws, tune=tune, return_inferencedata=True, cores=cores, chains=chains)
     
     return inference_data
 
