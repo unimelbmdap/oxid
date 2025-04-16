@@ -32,8 +32,8 @@ def format_fig(fig):
         ),
     )
     gridcolor = "#dddddd"
-    fig.update_xaxes(gridcolor=gridcolor)
-    fig.update_yaxes(gridcolor=gridcolor)
+    fig.update_xaxes(gridcolor=gridcolor, zerolinecolor="#eeeeee")
+    fig.update_yaxes(gridcolor=gridcolor, zerolinecolor="#111111")
 
     fig.update_xaxes(showline=True, linewidth=1, linecolor='black', mirror=True, ticks='outside')
     fig.update_yaxes(showline=True, linewidth=1, linecolor='black', mirror=True, ticks='outside')

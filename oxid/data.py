@@ -97,6 +97,9 @@ class Hysteresis(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+        if not pd.api.types.is_numeric_dtype(df[self.x_axis]):
+            df[self.x_axis] = df[self.x_axis].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+
         decreasing = df[self.x_axis].diff().fillna(0) > 0
         decreasing_df = df[decreasing]
         increasing_df = df[~decreasing]

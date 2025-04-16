@@ -10,6 +10,7 @@ from .viz import plot_moment
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
 from .viz import plot_posterior_histograms
+from .viz import format_fig
 from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
 from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT, CORES_DEFAULT
 
@@ -276,7 +277,7 @@ def plot_posterior_predictive_check(
 
 
 @app.command()
-def pca(
+def pca_old(
     csv:Path = typer.Argument(help="Path to the file with the paths"),
     hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
@@ -321,6 +322,7 @@ def pca(
             if not dataset.path: 
                 continue
 
+            print(f"extracting {dataset.path}")
             data = dataset.extract()
             regimes.update(data.keys())
             max_value = np.max([arrays[1].max() for arrays in data.values()])
@@ -387,3 +389,132 @@ def pca(
     fig = px.scatter(x=transformed_data[:,0], y=transformed_data[:,1], color=color, hover_data=[names])
     fig.update_traces(marker_size=10)
     fig.show()
+
+
+@app.command()
+def pca(
+    csv:Path = typer.Argument(help="Path to the file with the paths"),
+    hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
+    rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
+    zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
+    points:int=250,
+    features:int=10,
+    output:Path=None,
+    title:str="",
+):
+    df = pd.read_csv(csv)
+    
+    hysteresis_column = find_column(df, "hysteresis") if hysteresis else None
+    rtsirm_column = find_column(df, "rtsirm") if rtsirm else None
+    zfcfc_column = find_column(df, "zfcfc") if zfcfc else None
+
+    # variable_names = get_variable_names(iron_oxides)
+
+    base_dir = csv.parent.resolve()
+
+    results = defaultdict(dict)
+    
+    min_temp = 15
+    max_temp = 297
+    field_extreme = 69500
+    min_values = {'Cooling': min_temp, 'Heating': min_temp, 'ZFC': min_temp, 'FC': min_temp, 'Decreasing': -field_extreme, 'Increasing': field_extreme}
+    max_values = {'Cooling': max_temp, 'Heating': max_temp, 'ZFC': max_temp, 'FC': max_temp, 'Decreasing': -field_extreme, 'Increasing': field_extreme}
+    x_values = dict()
+    for regime in min_values:
+        # points = int(max_values[regime] - min_values[regime]) + 1
+        x_values[regime] = np.linspace(min_values[regime], max_values[regime], points)
+
+    vectors = []
+    for i, row in df.iterrows():
+        results[i].update(row)
+
+        def get_path(column) -> Path|None:
+            return base_dir/row[column] if column and row[column] else None
+
+        datasets = []
+        if hysteresis_column:
+            datasets.append(Hysteresis(get_path(hysteresis_column)))
+        if zfcfc_column:
+            datasets.append(ZFCFC(get_path(zfcfc_column)))
+        if rtsirm_column:
+            datasets.append(RTSIRM(get_path(rtsirm_column)))
+
+        feature_vectors = []
+        for dataset in datasets:
+            data = dataset.extract()
+
+            max_value = None
+            for regime, arrays in data.items():
+                my_max = arrays[1].max()
+                max_value = my_max if max_value is None else np.maximum(max_value, my_max)
+
+            for regime, arrays in data.items():
+                # x,y = arrays[0], (arrays[1])/arrays[1].max()
+                # x,y = arrays[0], arrays[1]
+                x,y = arrays[0], arrays[1]/max_value
+                interpolated = np.interp(x_values[regime], x, y)
+                fft_values = np.fft.fft(interpolated)
+                positive_magnitudes = np.abs(fft_values[:len(fft_values)//2])
+                feature_vectors.append(positive_magnitudes[:features])
+        feature_vector = np.concatenate(feature_vectors)
+        vectors.append(feature_vector)
+    
+    vectors = np.asarray(vectors)
+
+    # Standardise across regimes
+    # from sklearn.preprocessing import StandardScaler
+    # for start_index in range(0, vectors.shape[1], features):
+    #     end_index = start_index + features
+    #     scaler = StandardScaler()
+    #     vectors[:,start_index:end_index] = scaler.fit_transform(vectors[:,start_index:end_index])
+
+    # from sklearn.decomposition import PCA
+    # pca = PCA(n_components=2)
+    # pca.fit(vectors)
+    # transformed_data = pca.transform(vectors)
+    # print("Principal Components:")
+    # print(pca.components_)
+
+    # print("\nExplained Variance Ratio:")
+    # print(pca.explained_variance_ratio_)
+
+    from sklearn.manifold import TSNE
+    tsne = TSNE(n_components=2)
+    transformed_data = tsne.fit_transform(vectors)
+
+    # from sklearn.decomposition import FactorAnalysis
+    # fa = FactorAnalysis(n_components=2)
+    # transformed_data = fa.fit_transform(vectors)
+
+
+    names = [results[i]["RTSIRM"] for i in results]
+    color = [results[i]["Cluster"] for i in results]
+    import plotly.express as px
+    fig = px.scatter(x=transformed_data[:,0], y=transformed_data[:,1], color=color, hover_data=[names])
+    fig.update_traces(marker_size=14)
+    format_fig(fig)
+    fig.update_layout(
+        width=900,
+        height=800,
+        xaxis_title="Component 1",
+        yaxis_title="Component 2",
+        title=title or "t-Distributed Stochastic Neighbor Embedding (t-SNE)",
+        legend_title="Category",
+        xaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+        yaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+    )
+    fig.show()
+    if output:
+        output = Path(output)
+        output.parent.mkdir(exist_ok=True, parents=True)
+        print(f"Writing to {output}")
+        fig.write_image(output)
+
+        
+    
