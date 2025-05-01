@@ -347,7 +347,6 @@ def pca_old(
                 print(regime, min_values[regime], max_values[regime] )
                 results[i][regime] = arrays
     
-    breakpoint()
     x_values = dict()
     for regime in regimes:
         x_values[regime] = np.linspace(min_values[regime], max_values[regime], points)
@@ -398,7 +397,7 @@ def pca(
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
     zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
     points:int=250,
-    features:int=10,
+    features:int=20,
     output:Path=None,
     title:str="",
 ):
@@ -441,6 +440,7 @@ def pca(
 
         feature_vectors = []
         for dataset in datasets:
+            print(f"extracting {dataset.path}")
             data = dataset.extract()
 
             max_value = None
@@ -487,7 +487,7 @@ def pca(
     # transformed_data = fa.fit_transform(vectors)
 
 
-    names = [results[i]["RTSIRM"] for i in results]
+    names = [results[i]["Name"] for i in results]
     color = [results[i]["Cluster"] for i in results]
     import plotly.express as px
     fig = px.scatter(x=transformed_data[:,0], y=transformed_data[:,1], color=color, hover_data=[names])

@@ -21,16 +21,17 @@ class Data():
 
         df = pd.read_csv(self.path, skiprows=data_start_index + 1)
 
-        if df['Moment (emu)'].isnull().values.any():
-            df['Moment (emu)'] = df['DC Moment Fixed Ctr (emu)']
+        moment_column = 'Moment (emu)'
+        if df[moment_column].isnull().values.any():
+            df[moment_column] = df['DC Moment Fixed Ctr (emu)']
         
         mass_line = lines[23].strip() # hack, should find the line with SAMPLE_MASS
         components = mass_line.split(",")
         assert components[2] == "SAMPLE_MASS"
         mass = float(components[1])
-        if not pd.api.types.is_numeric_dtype(df['Moment (emu)']):
-            df['Moment (emu)'] = df['Moment (emu)'].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
-        df['Moment (A⋅m2/kg)'] = df['Moment (emu)'] / mass * 1000
+        if not pd.api.types.is_numeric_dtype(df[moment_column]):
+            df[moment_column] = df[moment_column].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+        df['Moment (A⋅m2/kg)'] = df[moment_column] / mass * 1000
 
         return df
     
@@ -165,7 +166,10 @@ class ZFCFC(Data):
             df["Temperature (K)"] = df["Temperature (K)"].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
 
         temp_diff = df["Temperature (K)"].diff()
-        transition_index = temp_diff[temp_diff < 0].index[0]
+        try:
+            transition_index = temp_diff[temp_diff < 0].index[0]
+        except IndexError:
+            transition_index = len(df) - 1
 
         # Label ZFC and FC based on the transition index
         df["Regime"] = ["ZFC" if i < transition_index else "FC" for i in df.index]
