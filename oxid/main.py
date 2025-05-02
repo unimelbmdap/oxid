@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import arviz as az
 from collections import defaultdict
+import umap
 
 from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
 from .viz import plot_moment
@@ -398,8 +399,11 @@ def pca(
     zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
     points:int=250,
     features:int=20,
-    output:Path=None,
+    n_neighbors:int=typer.Option(15, help="Number of neighbors for UMAP"),
+    reducer:Path=typer.Option(None, help="Path to save the UMAP reducer file"),
+    image:Path=None,
     title:str="",
+    seed:int=typer.Option(42, help="Random seed for UMAP"),
 ):
     df = pd.read_csv(csv)
     
@@ -478,9 +482,27 @@ def pca(
     # print("\nExplained Variance Ratio:")
     # print(pca.explained_variance_ratio_)
 
-    from sklearn.manifold import TSNE
-    tsne = TSNE(n_components=2)
-    transformed_data = tsne.fit_transform(vectors)
+    # from sklearn.manifold import TSNE
+    # tsne = TSNE(n_components=2)
+    # transformed_data = tsne.fit_transform(vectors)
+
+    if reducer and Path(reducer).exists():
+        import pickle
+        with open(reducer, "rb") as f:
+            model = pickle.load(f)
+    else:
+        model = umap.UMAP(n_neighbors=n_neighbors, n_components=2, random_state=seed)
+        model.fit(vectors)
+        if reducer:
+            import pickle
+            reducer = Path(reducer)
+            reducer.parent.mkdir(exist_ok=True, parents=True)
+            print(f"Writing reducer to {reducer}")
+            with open(reducer, "wb") as f:
+                pickle.dump(model, f)
+
+    transformed_data = model.transform(vectors)
+    # transformed_data = model.transform(vectors)
 
     # from sklearn.decomposition import FactorAnalysis
     # fa = FactorAnalysis(n_components=2)
@@ -498,7 +520,7 @@ def pca(
         height=800,
         xaxis_title="Component 1",
         yaxis_title="Component 2",
-        title=title or "t-Distributed Stochastic Neighbor Embedding (t-SNE)",
+        title=title or "UMAP Projection",
         legend_title="Category",
         xaxis=dict(
             zerolinecolor='#dddddd',
@@ -510,11 +532,11 @@ def pca(
         ),
     )
     fig.show()
-    if output:
-        output = Path(output)
-        output.parent.mkdir(exist_ok=True, parents=True)
-        print(f"Writing to {output}")
-        fig.write_image(output)
+    if image:
+        image = Path(image)
+        image.parent.mkdir(exist_ok=True, parents=True)
+        print(f"Writing to {image}")
+        fig.write_image(image)
 
         
     
