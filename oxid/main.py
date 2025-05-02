@@ -404,6 +404,8 @@ def pca(
     image:Path=None,
     title:str="",
     seed:int=typer.Option(42, help="Random seed for UMAP"),
+    include_normalized:bool=typer.Option(True, help="Whether to include normalized data"),
+    include_unnormalized:bool=typer.Option(True, help="Whether to include unnormalized data"),
 ):
     df = pd.read_csv(csv)
     
@@ -447,19 +449,31 @@ def pca(
             print(f"extracting {dataset.path}")
             data = dataset.extract()
 
+            # Get the maximum value for this 
             max_value = None
             for regime, arrays in data.items():
                 my_max = arrays[1].max()
                 max_value = my_max if max_value is None else np.maximum(max_value, my_max)
 
             for regime, arrays in data.items():
-                # x,y = arrays[0], (arrays[1])/arrays[1].max()
-                # x,y = arrays[0], arrays[1]
-                x,y = arrays[0], arrays[1]/max_value
+                # Interpolate results to grid
+                x,y = arrays[0], arrays[1]
                 interpolated = np.interp(x_values[regime], x, y)
-                fft_values = np.fft.fft(interpolated)
-                positive_magnitudes = np.abs(fft_values[:len(fft_values)//2])
-                feature_vectors.append(positive_magnitudes[:features])
+
+                # Extract features
+                if features:
+                    fft_values = np.fft.fft(interpolated)
+                    positive_magnitudes = np.abs(fft_values[:len(fft_values)//2])
+                    feature_vector = positive_magnitudes[:features]
+                else:
+                    feature_vector = interpolated
+
+                assert include_normalized or include_unnormalized, f"You must include at least one of normalized or unnormalized data"
+                if include_normalized:
+                    feature_vectors.append(feature_vector/max_value)
+                if include_unnormalized:
+                    feature_vectors.append(feature_vector)
+
         feature_vector = np.concatenate(feature_vectors)
         vectors.append(feature_vector)
     
