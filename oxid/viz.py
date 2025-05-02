@@ -1,4 +1,5 @@
 import plotly.graph_objects as go
+import plotly.express as px
 import plotly.io as pio
 from plotly.subplots import make_subplots
 from pathlib import Path
@@ -301,3 +302,48 @@ def plot_posterior_predictive_check(
 
     
     return fig
+
+
+def plot_components(
+    transformed_data,
+    df,
+    title="UMAP Projection",
+    image=None,
+    show:bool=True,
+):
+    """
+    Plot the components of the transformed data using Plotly.
+    """
+    names = df["Name"].values
+    cluster = df["Cluster"].values
+    
+    fig = px.scatter(x=transformed_data[:,0], y=transformed_data[:,1], color=cluster, hover_data=[names])
+    fig.update_traces(marker_size=14)
+    format_fig(fig)
+    fig.update_layout(
+        width=900,
+        height=800,
+        xaxis_title="Component 1",
+        yaxis_title="Component 2",
+        title=title,
+        legend_title="Category",
+        xaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+        yaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+    )
+    if show:
+        fig.show()
+    if image:
+        image = Path(image)
+        image.parent.mkdir(exist_ok=True, parents=True)
+        print(f"Writing to {image}")
+        if image.suffix == ".html":
+            fig.write_html(image)
+        else:
+            fig.write_image(image)
+    

@@ -7,11 +7,10 @@ from collections import defaultdict
 import umap
 
 from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
-from .viz import plot_moment
+from .viz import plot_moment, plot_components
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
 from .viz import plot_posterior_histograms
-from .viz import format_fig
 from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
 from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT, CORES_DEFAULT
 
@@ -397,8 +396,8 @@ def pca(
     hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
     zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
-    points:int=250,
-    features:int=20,
+    points:int=typer.Option(250, help="Number of points to interpolate to"),
+    features:int=typer.Option(20, help="Number of features to extract. If zero then it uses the raw data"),
     n_neighbors:int=typer.Option(15, help="Number of neighbors for UMAP"),
     reducer:Path=typer.Option(None, help="Path to save the UMAP reducer file"),
     image:Path=None,
@@ -406,6 +405,7 @@ def pca(
     seed:int=typer.Option(42, help="Random seed for UMAP"),
     include_normalized:bool=typer.Option(True, help="Whether to include normalized data"),
     include_unnormalized:bool=typer.Option(True, help="Whether to include unnormalized data"),
+    show:bool=typer.Option(True, help="Whether to show the plot"),
 ):
     df = pd.read_csv(csv)
     
@@ -479,27 +479,7 @@ def pca(
     
     vectors = np.asarray(vectors)
 
-    # Standardise across regimes
-    # from sklearn.preprocessing import StandardScaler
-    # for start_index in range(0, vectors.shape[1], features):
-    #     end_index = start_index + features
-    #     scaler = StandardScaler()
-    #     vectors[:,start_index:end_index] = scaler.fit_transform(vectors[:,start_index:end_index])
-
-    # from sklearn.decomposition import PCA
-    # pca = PCA(n_components=2)
-    # pca.fit(vectors)
-    # transformed_data = pca.transform(vectors)
-    # print("Principal Components:")
-    # print(pca.components_)
-
-    # print("\nExplained Variance Ratio:")
-    # print(pca.explained_variance_ratio_)
-
-    # from sklearn.manifold import TSNE
-    # tsne = TSNE(n_components=2)
-    # transformed_data = tsne.fit_transform(vectors)
-
+    # UMAP dimensionality reduction
     if reducer and Path(reducer).exists():
         import pickle
         with open(reducer, "rb") as f:
@@ -514,43 +494,14 @@ def pca(
             print(f"Writing reducer to {reducer}")
             with open(reducer, "wb") as f:
                 pickle.dump(model, f)
-
     transformed_data = model.transform(vectors)
-    # transformed_data = model.transform(vectors)
 
-    # from sklearn.decomposition import FactorAnalysis
-    # fa = FactorAnalysis(n_components=2)
-    # transformed_data = fa.fit_transform(vectors)
-
-
-    names = [results[i]["Name"] for i in results]
-    color = [results[i]["Cluster"] for i in results]
-    import plotly.express as px
-    fig = px.scatter(x=transformed_data[:,0], y=transformed_data[:,1], color=color, hover_data=[names])
-    fig.update_traces(marker_size=14)
-    format_fig(fig)
-    fig.update_layout(
-        width=900,
-        height=800,
-        xaxis_title="Component 1",
-        yaxis_title="Component 2",
-        title=title or "UMAP Projection",
-        legend_title="Category",
-        xaxis=dict(
-            zerolinecolor='#dddddd',
-            zerolinewidth=1,
-        ),
-        yaxis=dict(
-            zerolinecolor='#dddddd',
-            zerolinewidth=1,
-        ),
+    # Plot the results
+    plot_components(
+        transformed_data,
+        df,
+        title=title,
+        image=image,
+        show=show,
     )
-    fig.show()
-    if image:
-        image = Path(image)
-        image.parent.mkdir(exist_ok=True, parents=True)
-        print(f"Writing to {image}")
-        fig.write_image(image)
-
         
-    
