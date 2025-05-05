@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import arviz as az
 from collections import defaultdict
-import umap
 
 from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
 from .viz import plot_moment, plot_components
@@ -13,7 +12,7 @@ from .viz import plot_inputs as plot_inputs_viz
 from .viz import plot_posterior_histograms
 from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
 from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT, CORES_DEFAULT
-
+from .features import dimensionality_reduction
 app = typer.Typer()
 
 
@@ -480,21 +479,12 @@ def pca(
     vectors = np.asarray(vectors)
 
     # UMAP dimensionality reduction
-    if reducer and Path(reducer).exists():
-        import pickle
-        with open(reducer, "rb") as f:
-            model = pickle.load(f)
-    else:
-        model = umap.UMAP(n_neighbors=n_neighbors, n_components=2, random_state=seed)
-        model.fit(vectors)
-        if reducer:
-            import pickle
-            reducer = Path(reducer)
-            reducer.parent.mkdir(exist_ok=True, parents=True)
-            print(f"Writing reducer to {reducer}")
-            with open(reducer, "wb") as f:
-                pickle.dump(model, f)
-    transformed_data = model.transform(vectors)
+    transformed_data = dimensionality_reduction(
+        vectors,
+        n_neighbors=n_neighbors,
+        seed=seed,
+        reducer_path=reducer,
+    )
 
     # Plot the results
     plot_components(
