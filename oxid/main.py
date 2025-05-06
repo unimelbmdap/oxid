@@ -6,26 +6,16 @@ import arviz as az
 from collections import defaultdict
 
 from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
-from .viz import plot_moment, plot_components
+from .viz import plot_moment, plot_components, plot_strip
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
 from .viz import plot_posterior_histograms
 from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
 from .models import get_variable_names, run_inference, DRAWS_DEFAULT, TUNE_DEFAULT, CHAINS_DEFAULT, CORES_DEFAULT
-from .features import dimensionality_reduction
+from .features import dimensionality_reduction, find_column, build_feature_vectors
 app = typer.Typer()
 
 
-def noramlize_column_name(name):
-    return name.lower().replace("-", "")
-
-
-def find_column(df, name):
-    name = noramlize_column_name(name)
-    for column in df.columns:
-        if name in noramlize_column_name(column):
-            return column
-    return None
 
 
 @app.command()
@@ -401,82 +391,28 @@ def pca(
     reducer:Path=typer.Option(None, help="Path to save the UMAP reducer file"),
     image:Path=None,
     title:str="",
-    seed:int=typer.Option(42, help="Random seed for UMAP"),
+    seed:int=typer.Option(0, help="Random seed for UMAP"),
     include_normalized:bool=typer.Option(True, help="Whether to include normalized data"),
     include_unnormalized:bool=typer.Option(True, help="Whether to include unnormalized data"),
     show:bool=typer.Option(True, help="Whether to show the plot"),
+    base_dir:Path=typer.Option(None, help="Base directory for the data files. If not provided, it will use the directory of the CSV file"),
+    components:int=typer.Option(2, help="Number of components for UMAP"),
+    color:str=typer.Option("Group", help="Column name to use for coloring the points"),
 ):
     df = pd.read_csv(csv)
+    base_dir = base_dir or csv.parent.resolve()
     
-    hysteresis_column = find_column(df, "hysteresis") if hysteresis else None
-    rtsirm_column = find_column(df, "rtsirm") if rtsirm else None
-    zfcfc_column = find_column(df, "zfcfc") if zfcfc else None
-
-    # variable_names = get_variable_names(iron_oxides)
-
-    base_dir = csv.parent.resolve()
-
-    results = defaultdict(dict)
-    
-    min_temp = 15
-    max_temp = 297
-    field_extreme = 69500
-    min_values = {'Cooling': min_temp, 'Heating': min_temp, 'ZFC': min_temp, 'FC': min_temp, 'Decreasing': -field_extreme, 'Increasing': field_extreme}
-    max_values = {'Cooling': max_temp, 'Heating': max_temp, 'ZFC': max_temp, 'FC': max_temp, 'Decreasing': -field_extreme, 'Increasing': field_extreme}
-    x_values = dict()
-    for regime in min_values:
-        # points = int(max_values[regime] - min_values[regime]) + 1
-        x_values[regime] = np.linspace(min_values[regime], max_values[regime], points)
-
-    vectors = []
-    for i, row in df.iterrows():
-        results[i].update(row)
-
-        def get_path(column) -> Path|None:
-            return base_dir/row[column] if column and row[column] else None
-
-        datasets = []
-        if hysteresis_column:
-            datasets.append(Hysteresis(get_path(hysteresis_column)))
-        if zfcfc_column:
-            datasets.append(ZFCFC(get_path(zfcfc_column)))
-        if rtsirm_column:
-            datasets.append(RTSIRM(get_path(rtsirm_column)))
-
-        feature_vectors = []
-        for dataset in datasets:
-            print(f"extracting {dataset.path}")
-            data = dataset.extract()
-
-            # Get the maximum value for this 
-            max_value = None
-            for regime, arrays in data.items():
-                my_max = arrays[1].max()
-                max_value = my_max if max_value is None else np.maximum(max_value, my_max)
-
-            for regime, arrays in data.items():
-                # Interpolate results to grid
-                x,y = arrays[0], arrays[1]
-                interpolated = np.interp(x_values[regime], x, y)
-
-                # Extract features
-                if features:
-                    fft_values = np.fft.fft(interpolated)
-                    positive_magnitudes = np.abs(fft_values[:len(fft_values)//2])
-                    feature_vector = positive_magnitudes[:features]
-                else:
-                    feature_vector = interpolated
-
-                assert include_normalized or include_unnormalized, f"You must include at least one of normalized or unnormalized data"
-                if include_normalized:
-                    feature_vectors.append(feature_vector/max_value)
-                if include_unnormalized:
-                    feature_vectors.append(feature_vector)
-
-        feature_vector = np.concatenate(feature_vectors)
-        vectors.append(feature_vector)
-    
-    vectors = np.asarray(vectors)
+    vectors = build_feature_vectors(
+        df,
+        base_dir=base_dir,
+        hysteresis=hysteresis,
+        rtsirm=rtsirm,
+        zfcfc=zfcfc,
+        points=points,
+        features=features,
+        include_normalized=include_normalized,
+        include_unnormalized=include_unnormalized,
+    )
 
     # UMAP dimensionality reduction
     transformed_data = dimensionality_reduction(
@@ -484,14 +420,29 @@ def pca(
         n_neighbors=n_neighbors,
         seed=seed,
         reducer_path=reducer,
+        n_components=components,
     )
 
     # Plot the results
-    plot_components(
-        transformed_data,
-        df,
-        title=title,
-        image=image,
-        show=show,
-    )
+    if show or image:
+        if components == 2:
+            plot_components(
+                transformed_data,
+                df,
+                title=title or "UMAP Projection",
+                image=image,
+                show=show,
+                color_column=color,
+            )
+        else:
+            plot_strip(
+                transformed_data,
+                df,
+                title=title or "UMAP Projection",
+                image=image,
+                show=show,
+                color_column=color,
+            )
+
+    # Save CSV
         

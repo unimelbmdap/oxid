@@ -4,6 +4,7 @@ import plotly.io as pio
 from plotly.subplots import make_subplots
 from pathlib import Path
 import numpy as np
+import pandas as pd
 
 from .data import IronOxide, DATA_TYPES, Data
 
@@ -144,11 +145,6 @@ def plot_inputs(
     process_fig(fig, output, show)
     return fig
 
-
-def get_bin_size(data):
-    num_bins = int(np.ceil(np.log2(len(data)) + 1))
-    bin_size = (data.max() - data.min()) / num_bins
-    return bin_size if bin_size > 0 else 0.05
 
 
 def plot_posterior_histograms(
@@ -305,19 +301,28 @@ def plot_posterior_predictive_check(
 
 
 def plot_components(
-    transformed_data,
-    df,
-    title="UMAP Projection",
-    image=None,
+    transformed_data:np.ndarray,
+    df:pd.DataFrame,
+    title:str="UMAP Projection",
+    image:Path=None,
     show:bool=True,
+    color_column: str = "Group",
 ):
     """
     Plot the components of the transformed data using Plotly.
     """
     names = df["Name"].values
-    cluster = df["Cluster"].values
+    cluster = df[color_column].values
+
+    x = transformed_data[:,0]
+    y = transformed_data[:,1] if transformed_data.shape[1] > 1 else np.zeros_like(x)
     
-    fig = px.scatter(x=transformed_data[:,0], y=transformed_data[:,1], color=cluster, hover_data=[names])
+    fig = px.scatter(
+        x=x, 
+        y=y, 
+        color=cluster, 
+        hover_data={"Name": names},
+    )
     fig.update_traces(marker_size=14)
     format_fig(fig)
     fig.update_layout(
@@ -346,4 +351,100 @@ def plot_components(
             fig.write_html(image)
         else:
             fig.write_image(image)
+
+
+def plot_histogram(
+    transformed_data:np.ndarray,
+    df:pd.DataFrame,
+    title:str="Histogram of UMAP Projection",
+    image:Path=None,
+    show:bool=True,
+    color_column: str = "Group",
+):
+    """
+    Plot the components of the transformed data using Plotly.
+    """
+    cluster = df[color_column].values
+
+    x = transformed_data[:,0]
     
+    fig = px.histogram(x=x, color=cluster, nbins=50, opacity=0.7, marginal="rug")
+    fig.update_layout(barmode='overlay')
+    format_fig(fig)
+    fig.update_layout(
+        width=900,
+        height=800,
+        xaxis_title="Component 1",
+        yaxis_title="Count",
+        title=title,
+        legend_title="Category",
+        xaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+        yaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+    )
+    if show:
+        fig.show()
+    if image:
+        image = Path(image)
+        image.parent.mkdir(exist_ok=True, parents=True)
+        print(f"Writing to {image}")
+        if image.suffix == ".html":
+            fig.write_html(image)
+        else:
+            fig.write_image(image)
+    
+
+
+def plot_strip(
+    transformed_data: np.ndarray,
+    df: pd.DataFrame,
+    title: str = "Component vs. Category",
+    image: Path = None,
+    show: bool = True,
+    color_column: str = "Group",
+):
+    """
+    Plot scatter points like a rug chart:
+    - x-axis: first component of transformed data
+    - y-axis: category (Cluster)
+    """
+    df = df.copy()
+    df["Component1"] = transformed_data[:, 0]
+    names = df["Name"].values
+
+    fig = px.strip(
+        df,
+        x="Component1",
+        y=color_column,
+        color=color_column,
+        stripmode="overlay",
+        orientation="h",
+        hover_data={"Name": names},
+    )
+
+    fig.update_traces(jitter=0.3, marker=dict(opacity=0.8, size=8))
+    format_fig(fig)
+    fig.update_layout(
+        xaxis_title="Component 1",
+        yaxis_title="Category",
+        title=title,
+        legend_title="Category",
+        xaxis=dict(zerolinecolor='#dddddd', zerolinewidth=1),
+        yaxis=dict(zerolinecolor='#dddddd', zerolinewidth=1),
+    )
+
+    if show:
+        fig.show()
+    if image:
+        image = Path(image)
+        image.parent.mkdir(exist_ok=True, parents=True)
+        print(f"Writing to {image}")
+        if image.suffix == ".html":
+            fig.write_html(image)
+        else:
+            fig.write_image(image)
