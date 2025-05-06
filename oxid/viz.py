@@ -11,13 +11,18 @@ from .data import IronOxide, DATA_TYPES, Data
 pio.kaleido.scope.mathjax = None
 
 
-def process_fig(fig:go.Figure, output:Path|None=None, show:bool=False) -> None:
+def process_fig(fig:go.Figure, output:Path|None=None, show:bool=False) -> go.Figure:
     if show:
         fig.show()
     if output:
         output = Path(output)
         output.parent.mkdir(parents=True, exist_ok=True)
-        fig.write_image(output)
+        print(f"Writing to {output}")
+        if output.suffix == ".html":
+            fig.write_html(output)
+        else:
+            fig.write_image(output)
+    return fig
 
 
 def format_fig(fig):
@@ -64,8 +69,7 @@ def plot_moment(data:Data, fig:go.Figure|None=None, row=1, col=1, title:str="", 
     fig.update_layout(title=title)
     format_fig(fig)
 
-    process_fig(fig, output, show)
-    return fig
+    return process_fig(fig, output, show)
 
 
 def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path|None=None) -> go.Figure:
@@ -87,8 +91,7 @@ def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path
     format_fig(fig)
     fig.update_layout(width=width, height=height)
 
-    process_fig(fig, output, show)
-    return fig
+    return process_fig(fig, output, show)
 
 
 def plot_inputs(
@@ -142,9 +145,7 @@ def plot_inputs(
     fig.update_layout(title=title)
     format_fig(fig)
     fig.update_layout(height=200+300*len(observations))
-    process_fig(fig, output, show)
-    return fig
-
+    return process_fig(fig, output, show)
 
 
 def plot_posterior_histograms(
@@ -223,9 +224,7 @@ def plot_posterior_histograms(
     fig.update_layout(
         height=len(datatypes) * 200 + 200
     )
-    process_fig(fig, output, show)
-    
-    return fig
+    return process_fig(fig, output, show)
 
 
 def plot_posterior_predictive_check(
@@ -242,17 +241,6 @@ def plot_posterior_predictive_check(
     fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=[key.replace("predicted_", "") for key in keys], vertical_spacing=0.1)
 
     for index, key in enumerate(keys):
-        # ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
-        # for i in range(ppc.shape[1]):
-        #     fig.add_trace(
-        #         go.Scatter(
-        #             y=ppc[:, i],
-        #             line=dict(color="gray", width=0.5),
-        #             showlegend=False,
-        #         ),
-        #         row=index + 1,
-        #         col=1,
-        #     )
         predictions = inference_data['posterior'][key].stack(draws=("chain", "draw")).values
         for i in range(predictions.shape[1]):
             fig.add_trace(
@@ -294,20 +282,17 @@ def plot_posterior_predictive_check(
     format_fig(fig)
     fig.update_layout(height=200+300*len(keys))
 
-    process_fig(fig, output, show)
-
-    
-    return fig
+    return process_fig(fig, output, show)
 
 
 def plot_components(
     transformed_data:np.ndarray,
     df:pd.DataFrame,
     title:str="UMAP Projection",
-    image:Path=None,
+    output:Path=None,
     show:bool=True,
     color_column: str = "Group",
-):
+) -> go.Figure:
     """
     Plot the components of the transformed data using Plotly.
     """
@@ -341,73 +326,17 @@ def plot_components(
             zerolinewidth=1,
         ),
     )
-    if show:
-        fig.show()
-    if image:
-        image = Path(image)
-        image.parent.mkdir(exist_ok=True, parents=True)
-        print(f"Writing to {image}")
-        if image.suffix == ".html":
-            fig.write_html(image)
-        else:
-            fig.write_image(image)
-
-
-def plot_histogram(
-    transformed_data:np.ndarray,
-    df:pd.DataFrame,
-    title:str="Histogram of UMAP Projection",
-    image:Path=None,
-    show:bool=True,
-    color_column: str = "Group",
-):
-    """
-    Plot the components of the transformed data using Plotly.
-    """
-    cluster = df[color_column].values
-
-    x = transformed_data[:,0]
-    
-    fig = px.histogram(x=x, color=cluster, nbins=50, opacity=0.7, marginal="rug")
-    fig.update_layout(barmode='overlay')
-    format_fig(fig)
-    fig.update_layout(
-        width=900,
-        height=800,
-        xaxis_title="Component 1",
-        yaxis_title="Count",
-        title=title,
-        legend_title="Category",
-        xaxis=dict(
-            zerolinecolor='#dddddd',
-            zerolinewidth=1,
-        ),
-        yaxis=dict(
-            zerolinecolor='#dddddd',
-            zerolinewidth=1,
-        ),
-    )
-    if show:
-        fig.show()
-    if image:
-        image = Path(image)
-        image.parent.mkdir(exist_ok=True, parents=True)
-        print(f"Writing to {image}")
-        if image.suffix == ".html":
-            fig.write_html(image)
-        else:
-            fig.write_image(image)
-    
+    return process_fig(fig, output, show)
 
 
 def plot_strip(
     transformed_data: np.ndarray,
     df: pd.DataFrame,
     title: str = "Component vs. Category",
-    image: Path = None,
+    output: Path = None,
     show: bool = True,
     color_column: str = "Group",
-):
+) -> go.Figure:
     """
     Plot scatter points like a rug chart:
     - x-axis: first component of transformed data
@@ -438,13 +367,5 @@ def plot_strip(
         yaxis=dict(zerolinecolor='#dddddd', zerolinewidth=1),
     )
 
-    if show:
-        fig.show()
-    if image:
-        image = Path(image)
-        image.parent.mkdir(exist_ok=True, parents=True)
-        print(f"Writing to {image}")
-        if image.suffix == ".html":
-            fig.write_html(image)
-        else:
-            fig.write_image(image)
+    return process_fig(fig, output, show)
+

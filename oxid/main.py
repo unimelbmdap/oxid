@@ -389,8 +389,9 @@ def pca(
     features:int=typer.Option(20, help="Number of features to extract. If zero then it uses the raw data"),
     n_neighbors:int=typer.Option(15, help="Number of neighbors for UMAP"),
     reducer:Path=typer.Option(None, help="Path to save the UMAP reducer file"),
-    image:Path=None,
-    title:str="",
+    image:Path=typer.Option(None, help="Path to save the image"),
+    output_csv:Path=typer.Option(None, help="Path to save the output CSV"),
+    title:str=typer.Option(None, help="Title of the plot"),
     seed:int=typer.Option(0, help="Random seed for UMAP"),
     include_normalized:bool=typer.Option(True, help="Whether to include normalized data"),
     include_unnormalized:bool=typer.Option(True, help="Whether to include unnormalized data"),
@@ -430,7 +431,7 @@ def pca(
                 transformed_data,
                 df,
                 title=title or "UMAP Projection",
-                image=image,
+                output=image,
                 show=show,
                 color_column=color,
             )
@@ -439,10 +440,19 @@ def pca(
                 transformed_data,
                 df,
                 title=title or "UMAP Projection",
-                image=image,
+                output=image,
                 show=show,
                 color_column=color,
             )
 
     # Save CSV
+    if output_csv:
+        # Save the transformed data to a CSV file
+        transformed_df = pd.DataFrame(transformed_data, columns=[f"Component_{i+1}" for i in range(transformed_data.shape[1])])
+
+        df = pd.concat([df, transformed_df], axis=1)
+
+        output_csv.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(output_csv, index=False)
+        print(f"Saved CSV to {output_csv}")
         
