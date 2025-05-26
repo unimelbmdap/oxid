@@ -104,7 +104,9 @@ def embed(
     base_dir:Path=typer.Option(None, help="Base directory for the data files. If not provided, it will use the directory of the CSV file"),
     components:int=typer.Option(2, help="Number of components for UMAP"),
     color:str=typer.Option("Group", help="Column name to use for coloring the points"),
+    force:bool=typer.Option(False, help="Force re-computation of the reducer if it already exists"),
 ):
+    """ Embed the data from a CSV file using UMAP and plot the results. """
     df = pd.read_csv(csv)
     base_dir = base_dir or csv.parent.resolve()
     
@@ -126,6 +128,7 @@ def embed(
         seed=seed,
         reducer_path=reducer,
         n_components=components,
+        force=force,
     )
 
     # Plot the results

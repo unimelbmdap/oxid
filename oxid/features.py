@@ -102,13 +102,14 @@ def dimensionality_reduction(
     seed:int = 0,
     n_components:int = 2,
     reducer_path: Path|str|None = None,
+    force:bool = False,
 ):
     """ 
     Perform dimensionality reduction on the input vectors using UMAP.
     If a reducer_path is provided and the file exists, it will load the UMAP model from the file.
     Otherwise, it will fit a new UMAP model and save it to the specified path.
     """
-    if reducer_path and Path(reducer_path).exists():
+    if reducer_path and Path(reducer_path).exists() and not force:
         import pickle
         with open(reducer_path, "rb") as f:
             model = pickle.load(f)
