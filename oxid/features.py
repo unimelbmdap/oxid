@@ -113,8 +113,6 @@ def dimensionality_reduction(
         with open(reducer_path, "rb") as f:
             model = pickle.load(f)
     else:
-        breakpoint()
-
         model = umap.UMAP(n_neighbors=n_neighbors, n_components=n_components, random_state=seed)
         model.fit(vectors)
         if reducer_path:
