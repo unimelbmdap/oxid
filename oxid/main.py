@@ -1,14 +1,11 @@
 import typer
 from pathlib import Path
 import pandas as pd
-import arviz as az
 
 from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
 from .viz import plot_moment, plot_components, plot_strip
 from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
-from .viz import plot_posterior_histograms
-from .viz import plot_posterior_predictive_check as plot_posterior_predictive_check_viz
 from .features import dimensionality_reduction, build_feature_vectors
 
 app = typer.Typer()
@@ -85,28 +82,6 @@ def plot_standards(
 ):
     """ Plot standard Hysteresis, RT-SIRM, and ZFC-FC for each iron oxide """
     plot_standards_viz(show=show, output=output)
-
-
-@app.command()
-def plot_posterior(
-    inference_data:Path = typer.Argument(help="Path to the inference data file"),
-    output:Path = typer.Option(None, help="Path to save the plot"),
-    show:bool = typer.Option(True, help="Whether to show the plot"),
-):
-    """ Plot the posterior distribution of the iron oxide proportions """
-    inference_data = az.from_netcdf(inference_data)
-    plot_posterior_histograms(inference_data, show=show, output=output)
-
-
-@app.command()
-def plot_posterior_predictive_check(
-    inference_data:Path = typer.Argument(help="Path to the inference data file"),
-    output:Path = typer.Option(None, help="Path to save the plot"),
-    show:bool = typer.Option(True, help="Whether to show the plot"),
-):
-    """ Plot the posterior predictive check of the iron oxide proportions """
-    inference_data = az.from_netcdf(inference_data)
-    plot_posterior_predictive_check_viz(inference_data, show=show, output=output)
 
 
 @app.command()
