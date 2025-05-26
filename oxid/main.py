@@ -8,7 +8,7 @@ from .viz import plot_standards as plot_standards_viz
 from .viz import plot_inputs as plot_inputs_viz
 from .features import dimensionality_reduction, build_feature_vectors
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @app.command()

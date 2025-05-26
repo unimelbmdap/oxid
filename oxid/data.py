@@ -21,6 +21,9 @@ class Data():
 
         df = pd.read_csv(self.path, skiprows=data_start_index + 1)
 
+        if 'Moment..emu.' in df:
+            df['Moment (emu)'] = df['Moment..emu.']
+
         moment_column = 'Moment (emu)'
         if df[moment_column].isnull().values.any():
             df[moment_column] = df['DC Moment Fixed Ctr (emu)']
@@ -98,6 +101,10 @@ class Hysteresis(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+
+        # Rename improperly named column
+        df = df.rename(columns={'Magnetic.Field..Oe.': self.x_axis})
+
         if not pd.api.types.is_numeric_dtype(df[self.x_axis]):
             df[self.x_axis] = df[self.x_axis].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
 
@@ -130,6 +137,10 @@ class RTSIRM(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+
+        # Rename improperly named column
+        df = df.rename(columns={'Temperature..K.': self.x_axis})
+
         if not pd.api.types.is_numeric_dtype(df[self.x_axis]):
             df[self.x_axis] = df[self.x_axis].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
 
@@ -162,6 +173,10 @@ class ZFCFC(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+
+        # Rename improperly named column
+        df = df.rename(columns={'Temperature..K.': self.x_axis})
+
         if not pd.api.types.is_numeric_dtype(df["Temperature (K)"]):
             df["Temperature (K)"] = df["Temperature (K)"].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
 

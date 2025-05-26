@@ -164,3 +164,4 @@ input.csv
 *.svg
 
 x.dat
+build-reducer.sh
