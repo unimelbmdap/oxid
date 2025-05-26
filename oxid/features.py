@@ -20,7 +20,6 @@ def find_column(df, name):
 
 def build_feature_vectors(
     df: pd.DataFrame,
-    base_dir: Path,
     hysteresis: bool = True,
     rtsirm: bool = True,
     zfcfc: bool = True,
@@ -49,7 +48,7 @@ def build_feature_vectors(
         results[i].update(row)
 
         def get_path(column) -> Path|None:
-            return base_dir/row[column] if column and row[column] else None
+            return Path(row['base_dir'])/row[column] if column and row[column] else None
 
         datasets = []
         if hysteresis_column:
@@ -114,6 +113,8 @@ def dimensionality_reduction(
         with open(reducer_path, "rb") as f:
             model = pickle.load(f)
     else:
+        breakpoint()
+
         model = umap.UMAP(n_neighbors=n_neighbors, n_components=n_components, random_state=seed)
         model.fit(vectors)
         if reducer_path:

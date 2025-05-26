@@ -86,7 +86,7 @@ def plot_standards(
 
 @app.command()
 def embed(
-    csv:Path = typer.Argument(help="Path to the file with the paths"),
+    csvs:list[Path] = typer.Argument(help="Path to the file with the paths"),
     hysteresis:bool=typer.Option(True, help="Whether to use hysteresis data"),
     rtsirm:bool=typer.Option(True, help="Whether to use RT-SIRM data"),
     zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
@@ -107,12 +107,20 @@ def embed(
     force:bool=typer.Option(False, help="Force re-computation of the reducer if it already exists"),
 ):
     """ Embed the data from a CSV file using UMAP and plot the results. """
-    df = pd.read_csv(csv)
-    base_dir = base_dir or csv.parent.resolve()
+
+    assert len(csvs) >= 1
+    dfs = []
+    for csv in csvs:
+        df = pd.read_csv(csv)
+        if 'base_dir' not in df:
+            my_base_dir = base_dir or csv.parent.resolve()
+            df['base_dir'] = str(my_base_dir)
+
+        dfs.append(df)
+    df = pd.concat( dfs )
     
     vectors = build_feature_vectors(
         df,
-        base_dir=base_dir,
         hysteresis=hysteresis,
         rtsirm=rtsirm,
         zfcfc=zfcfc,
