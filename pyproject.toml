@@ -1,24 +1,24 @@
 [tool.poetry]
 name = "oxid"
 version = "0.2.0"
-description = "A python package that takes magenetic data from samples of Ochre to predict the type of iron oxide present"
+description = "A python package that takes magenetic data from samples of Ochre and embeds the data for comparison and visualisation"
 authors = ["Maddison Crombie", "Robert Turnbull <robert.turnbull@unimelb.edu.au>", "Rachel Popelka-Filcoff"]
 license = "Apache-2.0"
 readme = "README.rst"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
-pymc = "^5.18.0"
-typer = "^0.13.0"
-pandas = "^2.2.3"
-plotly = "^5.24.1"
+typer = ">=0.13.0"
+pandas = ">=2.2.3"
+plotly = ">=5.24.1"
 kaleido = "=0.2.1"
-rich = "^13.9.4"
-patsy = "^1.0.1"
+rich = ">=13.9.4"
+scikit-learn = ">=1.6.1"
+umap-learn = ">=0.5.7"
 
 
 [tool.poetry.group.dev.dependencies]
-ipykernel = "^6.29.5"
+ipykernel = ">=6.29.5"
 
 [build-system]
 requires = ["poetry-core"]

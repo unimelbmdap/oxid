@@ -21,14 +21,17 @@ class Data():
 
         df = pd.read_csv(self.path, skiprows=data_start_index + 1)
 
-        if df['Moment (emu)'].isnull().values.any():
-            df['Moment (emu)'] = df['DC Moment Fixed Ctr (emu)']
+        moment_column = 'Moment (emu)'
+        if df[moment_column].isnull().values.any():
+            df[moment_column] = df['DC Moment Fixed Ctr (emu)']
         
         mass_line = lines[23].strip() # hack, should find the line with SAMPLE_MASS
         components = mass_line.split(",")
         assert components[2] == "SAMPLE_MASS"
         mass = float(components[1])
-        df['Moment (A⋅m2/kg)'] = df['Moment (emu)'] / mass * 1000
+        if not pd.api.types.is_numeric_dtype(df[moment_column]):
+            df[moment_column] = df[moment_column].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+        df['Moment (A⋅m2/kg)'] = df[moment_column] / mass * 1000
 
         return df
     
@@ -39,7 +42,7 @@ class Data():
     def x_axis(self) -> str:
         raise NotImplementedError
     
-    def interpolate_standards(self, iron_oxides:list["IronOxide"]) -> np.ndarray:
+    def interpolate_standards(self, iron_oxides:list["IronOxide"], npoints:int=0) -> np.ndarray:
         my_extracted = self.extract()
         standards = [IronOxide.get(iron_oxide).standard_data(self.__class__.__name__.lower()).extract() for iron_oxide in iron_oxides]
 
@@ -66,6 +69,12 @@ class Data():
         result = {}
         for key in my_extracted.keys():
             x, y = my_extracted[key]
+
+            if npoints:
+                new_x = np.linspace(x.min(), x.max(), npoints)
+                y = np.interp(new_x, x, y)
+                x = new_x
+
             interpolated_array = []
             for standard_extracted in standards:
                 standard_x, standard_y = standard_extracted[key]
@@ -89,6 +98,9 @@ class Hysteresis(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+        if not pd.api.types.is_numeric_dtype(df[self.x_axis]):
+            df[self.x_axis] = df[self.x_axis].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+
         decreasing = df[self.x_axis].diff().fillna(0) > 0
         decreasing_df = df[decreasing]
         increasing_df = df[~decreasing]
@@ -118,6 +130,9 @@ class RTSIRM(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+        if not pd.api.types.is_numeric_dtype(df[self.x_axis]):
+            df[self.x_axis] = df[self.x_axis].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+
         temp_diff_positive = df[self.x_axis].diff().fillna(0) > 0
         heating_df = df[temp_diff_positive]
         cooling_df = df[~temp_diff_positive]
@@ -147,8 +162,14 @@ class ZFCFC(Data):
 
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
         df = self.dataframe
+        if not pd.api.types.is_numeric_dtype(df["Temperature (K)"]):
+            df["Temperature (K)"] = df["Temperature (K)"].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+
         temp_diff = df["Temperature (K)"].diff()
-        transition_index = temp_diff[temp_diff < 0].index[0]
+        try:
+            transition_index = temp_diff[temp_diff < 0].index[0]
+        except IndexError:
+            transition_index = len(df) - 1
 
         # Label ZFC and FC based on the transition index
         df["Regime"] = ["ZFC" if i < transition_index else "FC" for i in df.index]
@@ -236,14 +257,17 @@ def standard_data(iron_oxide:IronOxide|str, measurement:str) -> Data:
     return iron_oxide.standard_data(measurement)
 
 
-def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradients:bool=False) -> tuple[list[np.ndarray], list[list[np.ndarray]], list[str]]:
+def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradients:bool=False) -> tuple[list[np.ndarray], list[list[np.ndarray]], list[str], list[str]]:
     observations = []
     basis_functions = []
     regimes = []
+    datatypes = []
     for data in data_files: 
+        datatype = type(data).__name__
         result = data.interpolate_standards(iron_oxides)
         for regime, value in result.items():
             _, y, standards = value
+            datatypes.append(datatype)
             
             if gradients:
                 y = np.diff(y)
@@ -260,7 +284,7 @@ def collate_results(data_files:list[Data], iron_oxides:list[IronOxide], gradient
                 regime_basis_functions.append(basis_function)
             basis_functions.append(regime_basis_functions)
 
-    return observations, basis_functions, regimes
+    return observations, basis_functions, regimes, datatypes
 
 
 def data_files_list(

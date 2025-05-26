@@ -1,21 +1,28 @@
 import plotly.graph_objects as go
+import plotly.express as px
 import plotly.io as pio
 from plotly.subplots import make_subplots
 from pathlib import Path
 import numpy as np
+import pandas as pd
 
 from .data import IronOxide, DATA_TYPES, Data
 
 pio.kaleido.scope.mathjax = None
 
 
-def process_fig(fig:go.Figure, output:Path|None=None, show:bool=False) -> None:
+def process_fig(fig:go.Figure, output:Path|None=None, show:bool=False) -> go.Figure:
     if show:
         fig.show()
     if output:
         output = Path(output)
         output.parent.mkdir(parents=True, exist_ok=True)
-        fig.write_image(output)
+        print(f"Writing to {output}")
+        if output.suffix == ".html":
+            fig.write_html(output)
+        else:
+            fig.write_image(output)
+    return fig
 
 
 def format_fig(fig):
@@ -32,8 +39,8 @@ def format_fig(fig):
         ),
     )
     gridcolor = "#dddddd"
-    fig.update_xaxes(gridcolor=gridcolor)
-    fig.update_yaxes(gridcolor=gridcolor)
+    fig.update_xaxes(gridcolor=gridcolor, zerolinecolor="#eeeeee")
+    fig.update_yaxes(gridcolor=gridcolor, zerolinecolor="#111111")
 
     fig.update_xaxes(showline=True, linewidth=1, linecolor='black', mirror=True, ticks='outside')
     fig.update_yaxes(showline=True, linewidth=1, linecolor='black', mirror=True, ticks='outside')
@@ -62,8 +69,7 @@ def plot_moment(data:Data, fig:go.Figure|None=None, row=1, col=1, title:str="", 
     fig.update_layout(title=title)
     format_fig(fig)
 
-    process_fig(fig, output, show)
-    return fig
+    return process_fig(fig, output, show)
 
 
 def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path|None=None) -> go.Figure:
@@ -85,8 +91,7 @@ def plot_standards(width:int=1100, height:int=1100, show:bool=False, output:Path
     format_fig(fig)
     fig.update_layout(width=width, height=height)
 
-    process_fig(fig, output, show)
-    return fig
+    return process_fig(fig, output, show)
 
 
 def plot_inputs(
@@ -140,14 +145,7 @@ def plot_inputs(
     fig.update_layout(title=title)
     format_fig(fig)
     fig.update_layout(height=200+300*len(observations))
-    process_fig(fig, output, show)
-    return fig
-
-
-def get_bin_size(data):
-    num_bins = int(np.ceil(np.log2(len(data)) + 1))
-    bin_size = (data.max() - data.min()) / num_bins
-    return bin_size if bin_size > 0 else 0.05
+    return process_fig(fig, output, show)
 
 
 def plot_posterior_histograms(
@@ -155,59 +153,78 @@ def plot_posterior_histograms(
     show: bool = False,
     output: Path | None = None,
 ) -> go.Figure:
-    fig = go.Figure()
+    # Get datatypes from the posterior keys
+    datatypes = []
+    for key in inference_data.posterior.keys():
+        if key.endswith("_factor"):
+            datatype = key.split("_")[1]
+            if datatype not in datatypes:
+                datatypes.append(datatype)
 
-    for iron_oxide in IronOxide:
-        key = f"{iron_oxide}_proportion"
-        if key in inference_data.posterior:
-            data = inference_data.posterior[key].values.flatten()
-            mean_value = np.mean(data)
+    fig = make_subplots(rows=len(datatypes), cols=1, shared_xaxes=True, subplot_titles=datatypes, vertical_spacing=0.1)
 
-            # Compute histogram bins manually
-            bin_heights, bin_edges = np.histogram(data, bins="auto", density=True)
-            bin_width = np.diff(bin_edges)[0]  # Get uniform bin width
-            max_y = max(bin_heights) if len(bin_heights) > 0 else 0  # Find max bin height
+    for datatype in datatypes:
+        row = datatypes.index(datatype) + 1
+        for iron_oxide in IronOxide:
+            key = f"{iron_oxide}_{datatype}_factor"
+            if key in inference_data.posterior:
+                data = inference_data.posterior[key].values.flatten()
+                mean_value = np.mean(data)
 
-            # Set bin centers by shifting the edges by half the bin width
-            bin_centers = bin_edges[:-1] + bin_width / 2
+                # Compute histogram bins manually
+                bin_heights, bin_edges = np.histogram(data, bins="auto", density=True)
+                bin_width = np.diff(bin_edges)[0]  # Get uniform bin width
+                max_y = max(bin_heights) if len(bin_heights) > 0 else 0  # Find max bin height
 
-            # Use go.Bar with width equal to bin width to remove gaps
-            fig.add_trace(
-                go.Bar(
-                    x=bin_centers,
-                    y=bin_heights * bin_width,  # Normalize to match Plotly's probability scaling
-                    width=bin_width,  # Set bar width to be the bin width
-                    name=iron_oxide.title(),
-                    marker=dict(color=iron_oxide.color, line_width=0),
+                # Set bin centers by shifting the edges by half the bin width
+                bin_centers = bin_edges[:-1] + bin_width / 2
+
+                # Use go.Bar with width equal to bin width to remove gaps
+                fig.add_trace(
+                    go.Bar(
+                        x=bin_centers,
+                        y=bin_heights * bin_width,  # Normalize to match Plotly's probability scaling
+                        width=bin_width,  # Set bar width to be the bin width
+                        name=iron_oxide.title(),
+                        marker=dict(color=iron_oxide.color, line_width=0),
+                        showlegend=row==1,
+                    ),
+                    row=row,
+                    col=1,
                 )
-            )
 
-            # Add annotation at the top of the highest bin
-            fig.add_annotation(
-                x=mean_value,
-                y=max_y * bin_width * 1.05,  # Slightly above the highest bar
-                xref="x",
-                yref="y",
-                text=f"{mean_value:.2%}",  # Convert mean to percentage
-                showarrow=False,
-                arrowhead=0,
-                arrowcolor=iron_oxide.color,
-                font=dict(color=iron_oxide.color),
-            )
+                # Add annotation at the top of the highest bin
+                fig.add_annotation(
+                    x=mean_value,
+                    y=max_y * bin_width * 1.05,  # Slightly above the highest bar
+                    xref="x",
+                    yref="y",
+                    text=f"{mean_value:.2f}",
+                    showarrow=False,
+                    arrowhead=0,
+                    arrowcolor=iron_oxide.color,
+                    font=dict(color=iron_oxide.color),
+                    row=row,
+                    col=1,
+                )
 
     # Update layout to remove gaps between bars
     fig.update_layout(
         barmode="overlay",  # Overlay histograms
         bargap=0.0,  # No space between bars
         bargroupgap=0.0,  # No space between histogram groups
-        xaxis_title_text="Proportion",
-        xaxis_tickformat=".1%",
+        # xaxis_title_text="Factor",
+        xaxis_tickformat=".1f",
     )
+    for i in range(1, len(datatypes) + 1):
+        fig.update_yaxes(title_text="Density", row=i, col=1)
+    fig.update_xaxes(title_text="Scale Factor", row=i, col=1)
 
     format_fig(fig)
-    process_fig(fig, output, show)
-    
-    return fig
+    fig.update_layout(
+        height=len(datatypes) * 200 + 200
+    )
+    return process_fig(fig, output, show)
 
 
 def plot_posterior_predictive_check(
@@ -224,17 +241,6 @@ def plot_posterior_predictive_check(
     fig = make_subplots(rows=len(keys), cols=1, shared_xaxes=False, subplot_titles=[key.replace("predicted_", "") for key in keys], vertical_spacing=0.1)
 
     for index, key in enumerate(keys):
-        # ppc = inference_data[key]["likelihood"].stack(draws=("chain", "draw")).values
-        # for i in range(ppc.shape[1]):
-        #     fig.add_trace(
-        #         go.Scatter(
-        #             y=ppc[:, i],
-        #             line=dict(color="gray", width=0.5),
-        #             showlegend=False,
-        #         ),
-        #         row=index + 1,
-        #         col=1,
-        #     )
         predictions = inference_data['posterior'][key].stack(draws=("chain", "draw")).values
         for i in range(predictions.shape[1]):
             fig.add_trace(
@@ -248,7 +254,7 @@ def plot_posterior_predictive_check(
                 col=1,
             )
 
-        linear_combinations = inference_data['posterior'][key.replace('predicted', 'linear_combination')].stack(draws=("chain", "draw")).values
+        linear_combinations = inference_data['posterior'][key].stack(draws=("chain", "draw")).values
         for i in range(linear_combinations.shape[1]):
             fig.add_trace(
                 go.Scatter(
@@ -276,7 +282,89 @@ def plot_posterior_predictive_check(
     format_fig(fig)
     fig.update_layout(height=200+300*len(keys))
 
-    process_fig(fig, output, show)
+    return process_fig(fig, output, show)
 
+
+def plot_components(
+    transformed_data:np.ndarray,
+    df:pd.DataFrame,
+    title:str="UMAP Projection",
+    output:Path=None,
+    show:bool=True,
+    color_column: str = "Group",
+):
+    """
+    Plot the components of the transformed data using Plotly.
+    """
+    names = df["Name"].values
+    cluster = df[color_column].values
+
+    x = transformed_data[:,0]
+    y = transformed_data[:,1] if transformed_data.shape[1] > 1 else np.zeros_like(x)
     
-    return fig
+    fig = px.scatter(
+        x=x, 
+        y=y, 
+        color=cluster, 
+        hover_data={"Name": names},
+    )
+    fig.update_traces(marker_size=14)
+    format_fig(fig)
+    fig.update_layout(
+        width=900,
+        height=800,
+        xaxis_title="Component 1",
+        yaxis_title="Component 2",
+        title=title,
+        legend_title="Category",
+        xaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+        yaxis=dict(
+            zerolinecolor='#dddddd',
+            zerolinewidth=1,
+        ),
+    )
+    return process_fig(fig, output, show)
+
+
+def plot_strip(
+    transformed_data: np.ndarray,
+    df: pd.DataFrame,
+    title: str = "Component vs. Category",
+    output: Path = None,
+    show: bool = True,
+    color_column: str = "Group",
+) -> go.Figure:
+    """
+    Plot scatter points like a rug chart:
+    - x-axis: first component of transformed data
+    - y-axis: category (Cluster)
+    """
+    df = df.copy()
+    df["Component1"] = transformed_data[:, 0]
+
+    fig = px.strip(
+        df,
+        x="Component1",
+        y=color_column,
+        color=color_column,
+        stripmode="overlay",
+        orientation="h",
+        hover_data=["Name"],
+    )
+
+    fig.update_traces(jitter=0.3, marker=dict(opacity=0.8, size=8))
+    format_fig(fig)
+    fig.update_layout(
+        xaxis_title="Component 1",
+        yaxis_title="Category",
+        title=title,
+        legend_title="Category",
+        xaxis=dict(zerolinecolor='#dddddd', zerolinewidth=1),
+        yaxis=dict(zerolinecolor='#dddddd', zerolinewidth=1),
+    )
+
+    return process_fig(fig, output, show)
+
