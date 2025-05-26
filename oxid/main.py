@@ -2,6 +2,15 @@ import typer
 from pathlib import Path
 import pandas as pd
 
+import warnings
+warnings.filterwarnings(
+    "ignore",
+    message="'force_all_finite' was renamed to 'ensure_all_finite' in 1.6",
+    category=FutureWarning,
+    module="sklearn"
+)
+
+
 from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
 from .viz import plot_moment, plot_components, plot_strip
 from .viz import plot_standards as plot_standards_viz

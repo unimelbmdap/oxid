@@ -3,6 +3,7 @@ import umap
 import numpy as np
 from collections import defaultdict
 import pandas as pd
+from rich.progress import track
 
 from .data import Hysteresis, RTSIRM, ZFCFC
 
@@ -44,7 +45,7 @@ def build_feature_vectors(
         x_values[regime] = np.linspace(min_values[regime], max_values[regime], points)
 
     vectors = []
-    for i, row in df.iterrows():
+    for i, row in track(df.iterrows(), total=len(df), description="Building feature vectors"):
         results[i].update(row)
 
         def get_path(column) -> Path|None:
@@ -60,7 +61,7 @@ def build_feature_vectors(
 
         feature_vectors = []
         for dataset in datasets:
-            print(f"extracting {dataset.path}")
+            # print(f"Extracting {dataset.path}")
             data = dataset.extract()
 
             # Get the maximum value for this 
@@ -123,5 +124,6 @@ def dimensionality_reduction(
                 pickle.dump(model, f)
     
     # Perform the transformation
-    return model.transform(vectors)
+    result = np.concatenate([model.transform(vectors[i:i+1]) for i in range(len(vectors))])
+    return result
     
