@@ -21,7 +21,7 @@ app = typer.Typer(pretty_exceptions_enable=False)
 
 
 def parse_key_value_string(value: str) -> dict:
-    return dict(item.split('=') for item in value.split(','))
+    return dict(item.split('=') for item in value.split(',')) if value else {}
 
 
 @app.command()
