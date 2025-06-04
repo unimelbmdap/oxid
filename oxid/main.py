@@ -20,6 +20,10 @@ from .features import dimensionality_reduction, build_feature_vectors
 app = typer.Typer(pretty_exceptions_enable=False)
 
 
+def parse_key_value_string(value: str) -> dict:
+    return dict(item.split('=') for item in value.split(','))
+
+
 @app.command()
 def plot_inputs(
     hysteresis: Path = typer.Option(None, help="Path to a hysteresis data file"),
@@ -112,11 +116,11 @@ def embed(
     show:bool=typer.Option(True, help="Whether to show the plot"),
     base_dir:Path=typer.Option(None, help="Base directory for the data files. If not provided, it will use the directory of the CSV file"),
     components:int=typer.Option(2, help="Number of components for UMAP"),
-    color:str=typer.Option("Group", help="Column name to use for coloring the points"),
+    group:str=typer.Option("Group", help="Column name to use for coloring the points"),
     force:bool=typer.Option(False, help="Force re-computation of the reducer if it already exists"),
+    color_map=typer.Option(None, help="The colors for each group", callback=parse_key_value_string),
 ):
     """ Embed the data from a CSV file using UMAP and plot the results. """
-
     assert len(csvs) >= 1
     dfs = []
     for csv in csvs:
@@ -157,7 +161,8 @@ def embed(
                 title=title,
                 output=image,
                 show=show,
-                color_column=color,
+                color_column=group,
+                color_map=color_map,
             )
         else:
             plot_strip(
@@ -166,7 +171,8 @@ def embed(
                 title=title,
                 output=image,
                 show=show,
-                color_column=color,
+                color_column=group,
+                color_map=color_map,
             )
 
     # Save CSV

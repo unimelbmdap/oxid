@@ -155,6 +155,7 @@ def plot_components(
     output:Path=None,
     show:bool=True,
     color_column: str = "Group",
+    color_map:dict|None = None,
 ):
     """
     Plot the components of the transformed data using Plotly.
@@ -170,6 +171,7 @@ def plot_components(
         y=y, 
         color=cluster, 
         hover_data={"Name": names},
+        color_discrete_map=color_map,
     )
     fig.update_traces(marker_size=14)
     format_fig(fig)
@@ -199,6 +201,7 @@ def plot_strip(
     output: Path = None,
     show: bool = True,
     color_column: str = "Group",
+    color_map:dict|None = None,
 ) -> go.Figure:
     """
     Plot scatter points like a rug chart:
@@ -216,6 +219,7 @@ def plot_strip(
         stripmode="overlay",
         orientation="h",
         hover_data=["Name"],
+        color_discrete_map=color_map,
     )
 
     fig.update_traces(jitter=0.3, marker=dict(opacity=0.8, size=8))
