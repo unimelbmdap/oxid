@@ -99,6 +99,7 @@ def build_feature_vectors(
 def dimensionality_reduction(
     vectors: np.ndarray,
     n_neighbors:int = 15,
+    min_dist:float = 0.1,
     seed:int = 0,
     n_components:int = 2,
     reducer_path: Path|str|None = None,
@@ -114,7 +115,7 @@ def dimensionality_reduction(
         with open(reducer_path, "rb") as f:
             model = pickle.load(f)
     else:
-        model = umap.UMAP(n_neighbors=n_neighbors, n_components=n_components, random_state=seed)
+        model = umap.UMAP(n_neighbors=n_neighbors, n_components=n_components, random_state=seed, min_dist=min_dist)
         model.fit(vectors)
         if reducer_path:
             import pickle

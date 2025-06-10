@@ -105,7 +105,8 @@ def embed(
     zfcfc:bool=typer.Option(True, help="Whether to use ZFC-FC data"),
     points:int=typer.Option(250, help="Number of points to interpolate to"),
     features:int=typer.Option(20, help="Number of features to extract. If zero then it uses the raw data"),
-    n_neighbors:int=typer.Option(15, help="Number of neighbors for UMAP"),
+    n_neighbors:int=typer.Option(15, help="Number of neighbors for UMAP. See https://umap-learn.readthedocs.io/en/latest/parameters.html#n-neighbors"),
+    min_dist:float=typer.Option(0.1, help="Minimum distance for UMAP. See https://umap-learn.readthedocs.io/en/latest/parameters.html#min-dist"),
     reducer:Path=typer.Option(None, help="Path to save the UMAP reducer file"),
     image:Path=typer.Option(None, help="Path to save the image"),
     output_csv:Path=typer.Option(None, help="Path to save the output CSV"),
@@ -146,6 +147,7 @@ def embed(
     transformed_data = dimensionality_reduction(
         vectors,
         n_neighbors=n_neighbors,
+        min_dist=min_dist,
         seed=seed,
         reducer_path=reducer,
         n_components=components,
