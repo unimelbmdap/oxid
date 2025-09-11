@@ -131,7 +131,7 @@ def embed(
             df['base_dir'] = str(my_base_dir)
 
         dfs.append(df)
-    df = pd.concat( dfs )
+    df = pd.concat( dfs ).reset_index()
     
     vectors = build_feature_vectors(
         df,
