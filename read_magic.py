@@ -4,6 +4,21 @@ import typer
 
 app = typer.Typer()
 
+def write_measurement(output_dir: Path, specimen: str, measurement_type: str, mass: float, df: pd.DataFrame):
+    if df.empty:
+        return
+
+    # Check to see if 'Moment (A⋅m2/kg)' is non NaN
+    if 'Moment (A⋅m2/kg)' in df.columns and not df['Moment (A⋅m2/kg)'].isnull().all():
+        moment_column = 'Moment (A⋅m2/kg)'
+    else:
+        moment_column = 'Moment (emu)'
+
+    new_path = output_dir/f"{specimen}_{measurement_type}.dat"
+    new_path.write_text(f"INFO,{mass},SAMPLE_MASS\n[Data]\n")
+    df[['Temperature (K)', moment_column]].to_csv(new_path, index=False, mode="a", header=True)
+    print(f"    Saved data to {new_path}")
+
 
 @app.command()
 def read_magic(
@@ -39,6 +54,7 @@ def read_magic(
 
     measurements_df['Temperature (K)'] = measurements_df['treat_temp']
     measurements_df['Moment (emu)'] = measurements_df['magn_moment'] * 1000
+    measurements_df['Moment (A⋅m2/kg)'] = measurements_df['magn_mass']
 
     specimen_names = measurements_df['specimen'].unique()
     for specimen in specimen_names:
@@ -47,15 +63,17 @@ def read_magic(
         mass = specimen_data["weight"].values[0] * 1_000_000
         specimen_measurements_df = measurements_df[measurements_df['specimen'] == specimen]
 
-        measurements = specimen_measurements_df['method_codes'].unique()
-        for measurement in measurements:
-            print(f"  Measurement: {measurement}")
-            measurements_df = specimen_measurements_df[specimen_measurements_df['method_codes'] == measurement]
-            
-            new_path = output_dir/f"{specimen}_{measurement}.dat"
-            new_path.write_text(f"INFO,{mass},SAMPLE_MASS\n[Data]\n")
-            measurements_df[['Temperature (K)', 'Moment (emu)']].to_csv(new_path, index=False, mode="a", header=True)
-            print(f"    Saved data to {new_path}")
+        write_measurement(output_dir, specimen, "RTSIRM", mass, specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-CW-SIRM'])
+        write_measurement(
+            output_dir, 
+            specimen, 
+            "ZFCFC", 
+            mass, 
+            pd.concat([
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-ZFC'],
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-FC']
+            ])
+        )
 
 
 if __name__ == "__main__":

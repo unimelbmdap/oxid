@@ -1,10 +1,10 @@
+import re
 import pandas as pd
 from pathlib import Path
 from enum import Enum
 from dataclasses import dataclass
 from functools import cached_property
 import numpy as np
-from collections import defaultdict
 
 STANDARDS_DIR = Path(__file__).parent / "standards"
 
@@ -20,21 +20,27 @@ class Data():
         data_start_index = next(i for i, line in enumerate(lines) if '[Data]' in line)
 
         df = pd.read_csv(self.path, skiprows=data_start_index + 1)
-
-        if 'Moment..emu.' in df:
-            df['Moment (emu)'] = df['Moment..emu.']
-
-        moment_column = 'Moment (emu)'
-        if df[moment_column].isnull().values.any():
-            df[moment_column] = df['DC Moment Fixed Ctr (emu)']
         
-        mass_line = lines[23].strip() # hack, should find the line with SAMPLE_MASS
-        components = mass_line.split(",")
-        assert components[2] == "SAMPLE_MASS"
-        mass = float(components[1])
-        if not pd.api.types.is_numeric_dtype(df[moment_column]):
-            df[moment_column] = df[moment_column].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
-        df['Moment (A⋅m2/kg)'] = df[moment_column] / mass * 1000
+        # find line with 'SAMPLE_MASS,0.123'
+        mass = None
+        for line in lines:
+            if line.strip().endswith('SAMPLE_MASS') and line.startswith('INFO,'):
+                components = line.split(",")
+                mass = float(components[1])
+        assert mass is not None, "Could not find SAMPLE_MASS in data file"
+
+        # Calculate 'Moment (A⋅m2/kg)' if not present
+        if 'Moment (A⋅m2/kg)' not in df:
+            if 'Moment..emu.' in df:
+                df['Moment (emu)'] = df['Moment..emu.']
+
+            moment_column = 'Moment (emu)'
+            if df[moment_column].isnull().values.any():
+                df[moment_column] = df['DC Moment Fixed Ctr (emu)']
+
+            if not pd.api.types.is_numeric_dtype(df[moment_column]):
+                df[moment_column] = df[moment_column].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
+            df['Moment (A⋅m2/kg)'] = df[moment_column] / mass * 1000
 
         return df
     
