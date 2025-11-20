@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 import typer
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_enable=False)
 
 def write_measurement(output_dir: Path, specimen: str, measurement_type: str, mass: float, df: pd.DataFrame):
     if df.empty:
@@ -52,21 +52,67 @@ def read_magic(
     ]
     measurements_df = measurements_df[measurements_df['method_codes'].isin(MEASUREMENT_CODES)].copy()
 
-    measurements_df['Temperature (K)'] = measurements_df['treat_temp']
-    measurements_df['Moment (emu)'] = measurements_df['magn_moment'] * 1000
-    measurements_df['Moment (A⋅m2/kg)'] = measurements_df['magn_mass']
+    # Find the correct temperature column
+    temperature_data = None
 
-    specimen_names = measurements_df['specimen'].unique()
-    for specimen in specimen_names:
-        print(f"Specimen: {specimen}")
-        specimen_data = specimens_df[specimens_df.specimen == specimen]
-        mass = specimen_data["weight"].values[0] * 1_000_000
-        specimen_measurements_df = measurements_df[measurements_df['specimen'] == specimen]
+    def get_column_if_valid(measurements_df, column_name) -> pd.Series|None:
+        if column_name not in measurements_df:
+            return None
+        
+        data = measurements_df[column_name]
 
-        write_measurement(output_dir, specimen, "RTSIRM", mass, specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-CW-SIRM'])
+        data = pd.to_numeric(data, errors="coerce")
+        if data.isna().any():
+            return None
+            
+        # Check that there is variation
+        if data.min() == data.max():
+            return None
+        
+        return data
+
+    # Get Temperature Column
+    temperature_data = get_column_if_valid(measurements_df, 'meas_temp') # Default to `meas_temp`
+    if temperature_data is None:
+        temperature_data = get_column_if_valid(measurements_df, 'treat_temp')
+    if temperature_data is None:
+        raise ValueError("Cannot find appropriate Temperature column.")
+    
+    measurements_df['Temperature (K)'] = temperature_data
+    if 'magn_moment' in measurements_df:
+        measurements_df['Moment (emu)'] = measurements_df['magn_moment'] * 1000
+    if 'magn_mass' in measurements_df:
+        measurements_df['Moment (A⋅m2/kg)'] = measurements_df['magn_mass']
+
+    if 'specimen' in measurements_df:
+        experiment_column = 'specimen'
+    elif 'experiment' in measurements_df:
+        experiment_column = 'experiment'
+    else:
+        raise ValueError(f"Cannot find `specimen` column or `experiment` column in data")
+    
+    experiment_names = measurements_df[experiment_column].unique()
+    for experiment in experiment_names:
+        print(f"Experiment/Specimen: {experiment}")
+        specimen_measurements_df = measurements_df[measurements_df[experiment_column] == experiment]
+
+        if experiment_column not in specimens_df:
+            experiment_column += "s"
+        assert experiment_column in specimens_df, f"Cannot find `{experiment_column}` in {specimens_df.columns}"
+        specimen_data = specimens_df[specimens_df[experiment_column] == experiment]
+        
+        mass = specimen_data["weight"].values[0] * 1_000_000 if 'weight' in specimen_data and len(specimen_data) else 0
+
         write_measurement(
             output_dir, 
-            specimen, 
+            experiment, 
+            "RTSIRM", 
+            mass, 
+            specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-CW-SIRM'],
+        )
+        write_measurement(
+            output_dir, 
+            experiment, 
             "ZFCFC", 
             mass, 
             pd.concat([
@@ -74,6 +120,7 @@ def read_magic(
                 specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-FC']
             ])
         )
+    
 
 
 if __name__ == "__main__":
