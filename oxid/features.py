@@ -28,6 +28,7 @@ def build_feature_vectors(
     include_normalized: bool = True,
     include_unnormalized: bool = False,
     points: int = 250, # Number of points to interpolate to
+    verbose:bool = False,
 ) -> np.ndarray:
     hysteresis_column = find_column(df, "hysteresis") if hysteresis else None
     rtsirm_column = find_column(df, "rtsirm") if rtsirm else None
@@ -61,12 +62,17 @@ def build_feature_vectors(
 
         feature_vectors = []
         for dataset in datasets:
-            # print(f"Extracting {dataset.path}")
+            if verbose:
+                print(f"Extracting {dataset.path}")
+                
             data = dataset.extract()
 
             # Get the maximum value for this 
             max_value = None
             for regime, arrays in data.items():
+                if len(arrays[1]) == 0:
+                    raise ValueError(f"Problem with {regime}. Check the data in {dataset.path}")
+
                 my_max = arrays[1].max()
                 max_value = my_max if max_value is None else np.maximum(max_value, my_max)
 
