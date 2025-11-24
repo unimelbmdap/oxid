@@ -50,15 +50,27 @@ def build_feature_vectors(
         results[i].update(row)
 
         def get_path(column) -> Path|None:
-            return Path(row['base_dir'])/row[column] if column and row[column] else None
+            path = Path(row['base_dir'])/str(row[column]) if column and row[column] else None
+            if path and not path.exists():
+                return None
+            return path
 
         datasets = []
         if hysteresis_column:
-            datasets.append(Hysteresis(get_path(hysteresis_column)))
+            path = get_path(hysteresis_column)
+            if path:
+                datasets.append(Hysteresis(path))
         if zfcfc_column:
-            datasets.append(ZFCFC(get_path(zfcfc_column)))
+            path = get_path(zfcfc_column)
+            if path:
+                datasets.append(ZFCFC(path))
         if rtsirm_column:
-            datasets.append(RTSIRM(get_path(rtsirm_column)))
+            path = get_path(rtsirm_column)
+            if path:
+                datasets.append(RTSIRM(path))
+
+        if len(datasets) == 0:
+            continue
 
         feature_vectors = []
         for dataset in datasets:
