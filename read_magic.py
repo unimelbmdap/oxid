@@ -4,7 +4,7 @@ import typer
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
-def write_measurement(output_dir: Path, specimen: str, measurement_type: str, mass: float, df: pd.DataFrame):
+def write_measurement(output_dir: Path, specimen: str, measurement_type: str, mass: float, df: pd.DataFrame, x_column="Temperature (K)"):
     if df.empty:
         return
 
@@ -16,7 +16,7 @@ def write_measurement(output_dir: Path, specimen: str, measurement_type: str, ma
 
     new_path = output_dir/f"{specimen}_{measurement_type}.dat"
     new_path.write_text(f"INFO,{mass},SAMPLE_MASS\n[Data]\n")
-    df[['Temperature (K)', moment_column]].to_csv(new_path, index=False, mode="a", header=True)
+    df[[x_column, moment_column]].to_csv(new_path, index=False, mode="a", header=True)
     print(f"    Saved data to {new_path}")
 
 
@@ -47,10 +47,31 @@ def read_magic(
     MEASUREMENT_CODES = [
         'LP-ZFC',
         'LP-FC',
-        # 'LP-HYS',
+        'LP-HYS',
         'LP-CW-SIRM',
     ]
-    measurements_df = measurements_df[measurements_df['method_codes'].isin(MEASUREMENT_CODES)].copy()
+
+    available_codes = measurements_df['method_codes'].unique()
+    zfc_code = None
+    fc_code = None
+    hys_code = None
+    sirm_code = None
+    compatible_codes = set()
+    for code in available_codes:
+        if 'LP-ZFC' in code:
+            zfc_code = code
+            compatible_codes.add(zfc_code)
+        if 'LP-FC' in code:
+            fc_code = code
+            compatible_codes.add(fc_code)
+        if 'LP-HYS' in code:
+            hys_code = code
+            compatible_codes.add(hys_code)
+        if 'LP-CW-SIRM' in code:
+            sirm_code = code
+            compatible_codes.add(sirm_code)
+
+    measurements_df = measurements_df[measurements_df['method_codes'].isin(compatible_codes)].copy()
 
     # Find the correct temperature column
     temperature_data = None
@@ -84,6 +105,9 @@ def read_magic(
     if 'magn_mass' in measurements_df:
         measurements_df['Moment (A⋅m2/kg)'] = measurements_df['magn_mass']
 
+    if 'meas_field_dc' in measurements_df:
+        measurements_df['Magnetic Field (Oe)'] = measurements_df['meas_field_dc'] / 0.0001
+
     if 'specimen' in measurements_df:
         experiment_column = 'specimen'
     elif 'experiment' in measurements_df:
@@ -103,12 +127,13 @@ def read_magic(
         
         mass = specimen_data["weight"].values[0] * 1_000_000 if 'weight' in specimen_data and len(specimen_data) else 0
 
+        
         write_measurement(
             output_dir, 
             experiment, 
             "RTSIRM", 
             mass, 
-            specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-CW-SIRM'],
+            specimen_measurements_df[specimen_measurements_df['method_codes'] == sirm_code],
         )
         write_measurement(
             output_dir, 
@@ -116,10 +141,19 @@ def read_magic(
             "ZFCFC", 
             mass, 
             pd.concat([
-                specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-ZFC'],
-                specimen_measurements_df[specimen_measurements_df['method_codes'] == 'LP-FC']
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == zfc_code],
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == fc_code]
             ])
         )
+        if hys_code:
+            write_measurement(
+                output_dir, 
+                experiment, 
+                "HYST", 
+                mass, 
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == hys_code],
+                x_column="Magnetic Field (Oe)",
+            )
     
 
 
