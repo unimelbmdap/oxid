@@ -11,11 +11,11 @@ warnings.filterwarnings(
 )
 
 
-from .data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
-from .viz import plot_moment, plot_components, plot_strip
-from .viz import plot_standards as plot_standards_viz
-from .viz import plot_inputs as plot_inputs_viz
-from .features import dimensionality_reduction, build_feature_vectors
+from data import Hysteresis, RTSIRM, ZFCFC, collate_results, data_files_list, iron_oxides_list
+from viz import plot_moment, plot_components, plot_strip
+from viz import plot_standards as plot_standards_viz
+from viz import plot_inputs as plot_inputs_viz
+from features import dimensionality_reduction, build_feature_vectors
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
