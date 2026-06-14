@@ -419,7 +419,7 @@ else:
         use_container_width=True,
     )
 
-    with st.expander("Sample Grouping", expanded=True):
+with st.expander("Sample Grouping", expanded=True):
 
     editable_df = st.data_editor(
         st.session_state.embedding["df"],
