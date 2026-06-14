@@ -1,31 +1,23 @@
 import streamlit as st
 from pathlib import Path
+from collections import defaultdict
+import pandas as pd
 
-import plotly.graph_objects as go
-
-from data import (
-    data_files_list,
-    iron_oxides_list,
-    collate_results,
-    Hysteresis,
-    RTSIRM,
-    ZFCFC,
-)
+from data import Hysteresis, RTSIRM, ZFCFC
 
 from features import (
     build_feature_vectors,
     dimensionality_reduction,
 )
 
-from viz import plot_inputs as plot_inputs_viz
-from viz import plot_components
-
+from viz import (
+    plot_components,
+    plot_moment,
+)
 
 # =========================
 # SESSION STATE
 # =========================
-if "results" not in st.session_state:
-    st.session_state.results = None
 
 if "embedding" not in st.session_state:
     st.session_state.embedding = None
@@ -35,29 +27,53 @@ if "file_groups" not in st.session_state:
 
 
 # =========================
-# CLASSIFIER
+# FILE CLASSIFICATION
 # =========================
+
 def classify_file(path: Path):
+
     name = path.name.lower()
 
-    if "hys" in name:
+    if "_hys" in name:
         return "hysteresis"
-    if "rtsirm" in name or "rt-sirm" in name:
+
+    if "_rtsirm" in name:
         return "rtsirm"
-    if "zfc" in name or "fc" in name:
+
+    if "_zfcfc" in name:
         return "zfcfc"
 
     return "unknown"
 
 
 # =========================
-# RAW PLOT
+# SAMPLE NAME EXTRACTION
 # =========================
-from data import Hysteresis, RTSIRM, ZFCFC
-from viz import plot_moment
 
+def sample_name_from_file(path: Path):
+
+    stem = path.stem
+
+    lower = stem.lower()
+
+    if lower.endswith("_hys"):
+        return stem[:-4]
+
+    if lower.endswith("_rtsirm"):
+        return stem[:-7]
+
+    if lower.endswith("_zfcfc"):
+        return stem[:-6]
+
+    return stem
+
+
+# =========================
+# RAW PLOTS
+# =========================
 
 def plot_raw_files(groups):
+
     figs = []
 
     for kind, paths in groups.items():
@@ -88,31 +104,67 @@ def plot_raw_files(groups):
                 figs.append((path.name, fig))
 
             except Exception as e:
-                st.error(f"Failed plotting {path}: {e}")
+                st.error(f"Failed plotting {path.name}: {e}")
 
     return figs
 
 
 # =========================
-# PIPELINE WRAPPER (Streamlit-side)
+# BUILD OXID DATAFRAME
 # =========================
-def run_pipeline(groups, gradients):
-    data_files = data_files_list(
-        groups.get("hysteresis"),
-        groups.get("rtsirm"),
-        groups.get("zfcfc"),
+
+def build_embedding_dataframe(upload_dir, groups):
+
+    samples = defaultdict(dict)
+
+    for path in groups.get("hysteresis", []):
+
+        sample = sample_name_from_file(path)
+
+        samples[sample]["Name"] = sample
+        samples[sample]["Hysteresis"] = path.name
+
+    for path in groups.get("rtsirm", []):
+
+        sample = sample_name_from_file(path)
+
+        samples[sample]["Name"] = sample
+        samples[sample]["RTSIRM"] = path.name
+
+    for path in groups.get("zfcfc", []):
+
+        sample = sample_name_from_file(path)
+
+        samples[sample]["Name"] = sample
+        samples[sample]["ZFCFC"] = path.name
+
+    rows = []
+
+    for sample_name, row in samples.items():
+
+        row["Group"] = "Uploaded"
+        row["base_dir"] = str(upload_dir)
+
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
+# =========================
+# OXID PIPELINE
+# =========================
+
+def run_pipeline(groups, upload_dir):
+
+    df = build_embedding_dataframe(
+        upload_dir,
+        groups,
     )
 
-    iron_oxides = iron_oxides_list(True, True, True, True, True)
-
-    observed, basis_functions, regimes, datatypes = collate_results(
-        data_files,
-        iron_oxides,
-        gradients=gradients,
-    )
-
-    import pandas as pd
-    df = pd.DataFrame({"Name": regimes})
+    if len(df) < 2:
+        raise ValueError(
+            "UMAP requires at least two samples."
+        )
 
     vectors = build_feature_vectors(
         df,
@@ -125,42 +177,79 @@ def run_pipeline(groups, gradients):
         include_unnormalized=True,
     )
 
+    if len(vectors) < 2:
+        raise ValueError(
+            "Unable to generate enough feature vectors for UMAP."
+        )
+
+    n_neighbors = min(
+        15,
+        max(2, len(vectors) - 1),
+    )
+
     embedding = dimensionality_reduction(
         vectors,
-        n_neighbors=15,
+        n_neighbors=n_neighbors,
         min_dist=0.1,
         seed=0,
         n_components=2,
         force=True,
     )
 
-    return observed, basis_functions, regimes, iron_oxides, embedding, df
+    return embedding, df
 
 
 # =========================
-# UI
+# PAGE
 # =========================
-st.set_page_config(page_title="OxID", page_icon="🧲", layout="wide")
+
+st.set_page_config(
+    page_title="OxID",
+    page_icon="🧲",
+    layout="wide",
+)
 
 st.title("🧲 OxID Dashboard")
-st.markdown("Upload magnetic datasets and analyse hysteresis, RT-SIRM, and ZFC-FC behaviour.")
 
+st.markdown(
+    """
+Upload magnetic datasets and generate OxID UMAP embeddings.
+
+Accepted naming conventions:
+
+- Sample01_hys.dat
+- Sample01_rtsirm.dat
+- Sample01_zfcfc.dat
+
+Samples may contain one, two, or all three measurement types.
+"""
+)
 
 # =========================
 # SIDEBAR
 # =========================
+
 st.sidebar.header("Controls")
 
-use_hysteresis = st.sidebar.checkbox("Hysteresis", True)
-use_rtsirm = st.sidebar.checkbox("RT-SIRM", True)
-use_zfcfc = st.sidebar.checkbox("ZFC-FC", True)
+use_hysteresis = st.sidebar.checkbox(
+    "Hysteresis",
+    True,
+)
 
-mode = st.sidebar.selectbox("Plot Mode", ["lines+markers", "lines", "markers"])
+use_rtsirm = st.sidebar.checkbox(
+    "RT-SIRM",
+    True,
+)
 
+use_zfcfc = st.sidebar.checkbox(
+    "ZFC-FC",
+    True,
+)
 
 # =========================
 # UPLOAD
 # =========================
+
 st.header("Upload Data")
 
 uploaded_files = st.file_uploader(
@@ -168,7 +257,6 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
-# Persistent upload directory
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -203,124 +291,153 @@ if uploaded_files:
 
     for file_type, files in groups.items():
 
-        if len(files) > 0:
+        if files:
 
             st.success(
-                f"{file_type}: {len(files)} file(s) detected"
+                f"{file_type}: {len(files)} file(s)"
             )
 
             for file in files:
                 st.write(f"• {file.name}")
 
         else:
-            st.warning(f"{file_type}: missing")
+            st.warning(
+                f"{file_type}: none detected"
+            )
 
 # =========================
 # BUTTONS
 # =========================
+
 col1, col2 = st.columns(2)
 
-run_clicked = col1.button("🚀 Run OxID")
-plot_raw_clicked = col2.button("📈 Plot raw data")
+run_clicked = col1.button(
+    "🚀 Run OxID",
+    use_container_width=True,
+)
 
+plot_raw_clicked = col2.button(
+    "📈 Plot Raw Data",
+    use_container_width=True,
+)
 
 # =========================
-# RAW PLOT MODE
+# RAW PLOTS
 # =========================
+
 if plot_raw_clicked:
 
     groups = st.session_state.file_groups
 
     if not groups:
-        st.error("Upload files first")
+
+        st.error("Upload files first.")
         st.stop()
 
     figs = plot_raw_files(groups)
 
     if not figs:
-        st.warning("No valid plots generated")
+
+        st.warning("No valid plots generated.")
+
     else:
-        for kind, fig in figs:
-            st.subheader(kind)
-            st.plotly_chart(fig, use_container_width=True)
 
+        st.header("Raw Data")
+
+        for name, fig in figs:
+
+            st.subheader(name)
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+            )
 
 # =========================
-# RUN PIPELINE
+# RUN OXID
 # =========================
+
 if run_clicked:
 
     groups = st.session_state.file_groups
 
     if not groups:
-        st.error("Upload files first")
+
+        st.error("Upload files first.")
         st.stop()
 
-    observed, basis, regimes, iron_oxides, embedding, df = run_pipeline(
-        groups,
-        gradients=gradients,
+    try:
+
+        with st.spinner(
+            "Generating feature vectors and running UMAP..."
+        ):
+
+            embedding, df = run_pipeline(
+                groups,
+                UPLOAD_DIR,
+            )
+
+        st.session_state.embedding = {
+            "coords": embedding,
+            "df": df,
+        }
+
+        st.success(
+            f"OxID complete ({len(df)} samples processed)"
+        )
+
+    except Exception as e:
+
+        st.exception(e)
+
+# =========================
+# UMAP RESULTS
+# =========================
+
+st.divider()
+
+st.header("UMAP Embedding")
+
+if st.session_state.embedding is None:
+
+    st.info(
+        "Upload files and click 'Run OxID'."
     )
 
-    st.session_state.results = {
-        "observed": observed,
-        "basis": basis,
-        "regimes": regimes,
-        "iron_oxides": iron_oxides,
-    }
+else:
 
-    st.session_state.embedding = {
-        "coords": embedding,
-        "df": df,
-    }
+    fig = plot_components(
+        st.session_state.embedding["coords"],
+        st.session_state.embedding["df"],
+        title="OxID UMAP Projection",
+        show=False,
+    )
 
-    st.success("OxID complete")
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+    )
 
+    with st.expander(
+        "Sample Table",
+        expanded=False,
+    ):
 
-# =========================
-# TABS
-# =========================
-tab1, tab2 = st.tabs(["Overview", "UMAP"])
-
-
-with tab1:
-    st.header("Overview")
-
-    if st.session_state.results is None:
-        st.info("Run OxID to generate results.")
-    else:
-        fig = plot_inputs_viz(
-            st.session_state.results["observed"],
-            st.session_state.results["basis"],
-            st.session_state.results["regimes"],
-            st.session_state.results["iron_oxides"],
-            rescale=True,
-            show=False,
-            output=None,
-            mode=mode,
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-
-with tab2:
-    st.header("UMAP Embedding")
-
-    if st.session_state.embedding is None:
-        st.info("Run OxID to generate embeddings.")
-    else:
-        fig = plot_components(
-            st.session_state.embedding["coords"],
+        st.dataframe(
             st.session_state.embedding["df"],
-            title="UMAP Projection",
+            use_container_width=True,
         )
 
-        st.plotly_chart(fig, use_container_width=True)
-
-
 # =========================
-# FOOTER
+# ABOUT
 # =========================
+
 with st.expander("About"):
+
     st.write(
-        "OxID is a scientific tool for analysing magnetic mineral datasets."
+        """
+OxID is a scientific tool for analysing
+magnetic mineral datasets using hysteresis,
+RT-SIRM and ZFC-FC measurements.
+"""
     )
