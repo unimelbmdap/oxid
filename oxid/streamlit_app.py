@@ -290,7 +290,7 @@ if uploaded_files:
                 f.write(uploaded_file.getbuffer())
 
             # MagIC handling
-            iif path.suffix.lower() in [".txt", ".mag", ".magic"]:
+            if path.suffix.lower() in [".txt", ".mag", ".magic"]:
 
     st.info(f"Processing MagIC file: {path.name}")
 
