@@ -3,6 +3,8 @@ from pathlib import Path
 from collections import defaultdict
 import pandas as pd
 
+from read_magic import read_magic
+
 from data import Hysteresis, RTSIRM, ZFCFC
 
 from features import (
