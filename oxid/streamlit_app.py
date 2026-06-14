@@ -34,13 +34,13 @@ def classify_file(path: Path):
 
     name = path.name.lower()
 
-    if "_hys" or "_HYS" in name:
+    if "hys" or "HYS" in name:
         return "hysteresis"
 
-    if "_rtsirm" or "_RTSIRM" in name:
+    if "rtsirm" or "RTSIRM" in name:
         return "rtsirm"
 
-    if "_zfcfc" or "_ZFCFC" in name:
+    if "zfcfc" or "ZFCFC" in name:
         return "zfcfc"
 
     return "unknown"
