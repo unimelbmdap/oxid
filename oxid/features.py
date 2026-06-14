@@ -5,7 +5,7 @@ from collections import defaultdict
 import pandas as pd
 from rich.progress import track
 
-from .data import Hysteresis, RTSIRM, ZFCFC
+from data import Hysteresis, RTSIRM, ZFCFC
 
 def noramlize_column_name(name):
     return name.lower().replace("-", "")
