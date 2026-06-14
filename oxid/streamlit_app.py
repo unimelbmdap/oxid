@@ -51,7 +51,7 @@ def classify_file(path: Path):
 
 
 # =========================
-# RAW PLOT (Plotly + CLI-consistent)
+# RAW PLOT
 # =========================
 from data import Hysteresis, RTSIRM, ZFCFC
 from viz import plot_moment
@@ -60,34 +60,35 @@ from viz import plot_moment
 def plot_raw_files(groups):
     figs = []
 
-    for kind, path in groups.items():
-        if path is None:
-            continue
+    for kind, paths in groups.items():
 
-        try:
-            if kind == "hysteresis":
-                data = Hysteresis(path)
+        for path in paths:
 
-            elif kind == "rtsirm":
-                data = RTSIRM(path)
+            try:
 
-            elif kind == "zfcfc":
-                data = ZFCFC(path)
+                if kind == "hysteresis":
+                    data = Hysteresis(path)
 
-            else:
-                continue
+                elif kind == "rtsirm":
+                    data = RTSIRM(path)
 
-            fig = plot_moment(
-                data,
-                title=path.name,
-                show=False,
-                output=None,
-            )
+                elif kind == "zfcfc":
+                    data = ZFCFC(path)
 
-            figs.append((kind, fig))
+                else:
+                    continue
 
-        except Exception as e:
-            st.error(f"Failed plotting {kind}: {e}")
+                fig = plot_moment(
+                    data,
+                    title=path.name,
+                    show=False,
+                    output=None,
+                )
+
+                figs.append((path.name, fig))
+
+            except Exception as e:
+                st.error(f"Failed plotting {path}: {e}")
 
     return figs
 
@@ -213,7 +214,7 @@ if uploaded_files:
 
         else:
             st.warning(f"{file_type}: missing")
-            
+
 # =========================
 # BUTTONS
 # =========================
