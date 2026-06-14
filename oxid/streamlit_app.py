@@ -3,6 +3,8 @@ from pathlib import Path
 from collections import defaultdict
 import pandas as pd
 
+from magic_core import read_magic
+
 from data import Hysteresis, RTSIRM, ZFCFC
 
 from features import (
@@ -14,7 +16,12 @@ from viz import (
     plot_components,
     plot_moment,
 )
-
+if "file_groups" not in st.session_state or st.session_state.file_groups is None:
+    st.session_state.file_groups = {
+        "hysteresis": [],
+        "rtsirm": [],
+        "zfcfc": [],
+    }
 # =========================
 # SESSION STATE
 # =========================
@@ -283,22 +290,27 @@ if uploaded_files:
                 f.write(uploaded_file.getbuffer())
 
             # MagIC handling
-            if path.suffix.lower() in [".txt", ".magic", ".mag"]:
+            iif path.suffix.lower() in [".txt", ".mag", ".magic"]:
 
-                st.info(f"Processing MagIC file: {path.name}")
+    st.info(f"Processing MagIC file: {path.name}")
 
-                outputs = read_magic(
-                    path=str(path),
-                    output_dir=UPLOAD_DIR,
-                )
+    outputs = read_magic(
+        path=str(path),
+        output_dir=UPLOAD_DIR,
+    )
 
-                # IMPORTANT: classify generated files, not original
-                for out in outputs:
-                    kind = classify_file(out)
-                    if kind in st.session_state.file_groups:
-                        st.session_state.file_groups[kind].append(out)
+    # safety guard
+    if outputs is None:
+        st.error("MagIC conversion returned nothing")
+        continue
 
-                continue
+    for out in outputs:
+        kind = classify_file(out)
+
+        if kind in st.session_state.file_groups:
+            st.session_state.file_groups[kind].append(out)
+
+    continue
 
             # normal files
             kind = classify_file(path)
@@ -327,7 +339,12 @@ plot_raw_clicked = col2.button(
 
 if plot_raw_clicked:
 
-    groups = st.session_state.get("file_groups", None)
+    if not isinstance(st.session_state.file_groups, dict):
+    st.session_state.file_groups = {
+        "hysteresis": [],
+        "rtsirm": [],
+        "zfcfc": [],
+    }
 
     # ------------------------
     # Validate input
