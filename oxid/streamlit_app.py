@@ -32,16 +32,16 @@ if "file_groups" not in st.session_state:
 
 def classify_file(path: Path):
 
-    name = path.name.lower()
+    stem = path.stem.lower()
 
-    if "hys" or "HYS" in name:
-        return "hysteresis"
-
-    if "rtsirm" or "RTSIRM" in name:
+    if stem.endswith("rtsirm" or "RTSIRM" or "RT-SIRM"):
         return "rtsirm"
 
-    if "zfcfc" or "ZFCFC" in name:
+    if stem.endswith("zfcfc" or "ZFCFC" or "ZFC-FC"):
         return "zfcfc"
+
+    if stem.endswith("hys" or "HYS" or "HYSTERESIS"):
+        return "hysteresis"
 
     return "unknown"
 
