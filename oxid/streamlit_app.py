@@ -3,8 +3,14 @@ from pathlib import Path
 import tempfile
 
 from data import data_files_list, iron_oxides_list, collate_results
-from viz import plot_inputs
+from viz import plot_inputs, plot_components
+from features import build_feature_vectors, dimensionality_reduction
+import pandas as pd
 
+
+# ---------------------------
+# SESSION STATE INIT
+# ---------------------------
 if "results" not in st.session_state:
     st.session_state.results = None
 
@@ -14,23 +20,23 @@ if "embedding" not in st.session_state:
 if "file_groups" not in st.session_state:
     st.session_state.file_groups = None
 
-# ---------------------------
-# Add Classifier
-# ---------------------------
 
+# ---------------------------
+# CLASSIFIER
+# ---------------------------
 def classify_file(path):
     name = path.name.lower()
 
     if "hys" in name or "hysteresis" in name:
         return "hysteresis"
-
     if "rtsirm" in name or "rt-sirm" in name:
         return "rtsirm"
-
     if "zfc" in name or "fc" in name:
         return "zfcfc"
 
     return "unknown"
+
+
 # ---------------------------
 # PAGE CONFIG
 # ---------------------------
@@ -45,11 +51,9 @@ st.markdown("Upload magnetic datasets and visualise hysteresis, RT-SIRM, and ZFC
 
 
 # ---------------------------
-# SIDEBAR CONTROLS
+# SIDEBAR
 # ---------------------------
 st.sidebar.header("Controls")
-
-st.sidebar.header("Data Types")
 
 use_hysteresis = st.sidebar.checkbox("Hysteresis", value=True)
 use_rtsirm = st.sidebar.checkbox("RT-SIRM", value=True)
@@ -68,9 +72,8 @@ mode = st.sidebar.selectbox(
 )
 
 
-
 # ---------------------------
-# FILE UPLOADS
+# FILE UPLOAD + CLASSIFICATION
 # ---------------------------
 st.header("Upload Data")
 
@@ -79,30 +82,19 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True
 )
 
-if uploaded_files:
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        for uploaded_file in uploaded_files:
-            file_path = os.path.join(tmpdir, uploaded_file.name)
-
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-
-        st.success("Files uploaded successfully!")
-# -----------------------
-# SAVE + CLASSIFY FILES
-# -----------------------
-
 groups = {}
 
 if use_hysteresis:
     groups["hysteresis"] = None
-
 if use_rtsirm:
     groups["rtsirm"] = None
-
 if use_zfcfc:
     groups["zfcfc"] = None
+
+
+if uploaded_files:
+
+    with tempfile.TemporaryDirectory() as tmpdir:
 
         for f in uploaded_files:
             path = Path(tmpdir) / f.name
@@ -110,111 +102,33 @@ if use_zfcfc:
 
             file_type = classify_file(path)
 
-if file_type in groups:
-    groups[file_type] = path
+            if file_type in groups:
+                groups[file_type] = path
 
-        # -----------------------
-        # SHOW DETECTION RESULT
-        # -----------------------
-        st.subheader("Detected files")
+    st.session_state.file_groups = groups
 
-        for k, v in groups.items():
-            if v:
-                st.success(f"{k}: {v.name}")
-            else:
-                st.warning(f"{k}: missing")
+    st.subheader("Detected files")
 
-        # -----------------------
-        # CONTINUE PIPELINE
-        # -----------------------
-        data_files = data_files_list(
-            groups["hysteresis"],
-            groups["rtsirm"],
-            groups["zfcfc"],
-        )
+    for k, v in groups.items():
+        if v:
+            st.success(f"{k}: {v.name}")
+        else:
+            st.warning(f"{k}: missing")
 
-        iron_oxides = iron_oxides_list(
-            True, True, True, True, True  # you can replace with UI later
-        )
-
-        observed, basis_functions, regimes, datatypes = collate_results(
-            data_files,
-            iron_oxides,
-            gradients=gradients,
-        )
-
-        fig = plot_inputs(
-            observed,
-            basis_functions,
-            regimes,
-            iron_oxides,
-            rescale=rescale,
-            show=False,
-            output=None,
-            mode=mode,
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-# ---------------------------
-# MAIN ACTION
-# ---------------------------
-if st.button("Generate Plot"):
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-
-        def save_upload(upload):
-            if upload is None:
-                return None
-            path = Path(tmpdir) / upload.name
-            path.write_bytes(upload.getbuffer())
-            return path
-
-        hys_path = save_upload(hysteresis_file)
-        rtsirm_path = save_upload(rtsirm_file)
-        zfcfc_path = save_upload(zfcfc_file)
-
-        data_files = data_files_list(hys_path, rtsirm_path, zfcfc_path)
-
-        iron_oxides = iron_oxides_list(
-            goethite,
-            hematite,
-            magnetite,
-            maghemite,
-            algoethite,
-        )
-
-        observed, basis_functions, regimes, datatypes = collate_results(
-            data_files,
-            iron_oxides,
-            gradients=gradients,
-        )
-
-        fig = plot_inputs(
-            observed,
-            basis_functions,
-            regimes,
-            iron_oxides,
-            rescale=rescale,
-            show=False,
-            output=None,
-            mode=mode,
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
-# Run OxID
+# RUN PIPELINE BUTTON
 # ---------------------------
 if st.button("🚀 Run OxID"):
 
     groups = st.session_state.file_groups
 
-    if groups is None:
+    if not groups:
         st.error("Upload files first")
         st.stop()
 
     # -------------------------
-    # STEP 1: DATA PIPELINE
+    # DATA PIPELINE
     # -------------------------
     data_files = data_files_list(
         groups.get("hysteresis"),
@@ -222,14 +136,12 @@ if st.button("🚀 Run OxID"):
         groups.get("zfcfc"),
     )
 
-    iron_oxides = iron_oxides_list(
-        True, True, True, True, True
-    )
+    iron_oxides = iron_oxides_list(True, True, True, True, True)
 
     observed, basis_functions, regimes, datatypes = collate_results(
         data_files,
         iron_oxides,
-        gradients=False,
+        gradients=gradients,
     )
 
     st.session_state.results = {
@@ -240,13 +152,8 @@ if st.button("🚀 Run OxID"):
     }
 
     # -------------------------
-    # STEP 2: UMAP PIPELINE
+    # UMAP PIPELINE
     # -------------------------
-    from features import build_feature_vectors, dimensionality_reduction
-    import pandas as pd
-
-    # rebuild dataframe for embedding
-    # (you may already have this upstream in your CLI code)
     df = pd.DataFrame({"Name": regimes})
 
     vectors = build_feature_vectors(
@@ -277,8 +184,15 @@ if st.button("🚀 Run OxID"):
 
     st.success("OxID complete: plots + UMAP generated")
 
+
 # ---------------------------
-# Overview Tab
+# TABS
+# ---------------------------
+tab1, tab2 = st.tabs(["Overview", "UMAP"])
+
+
+# ---------------------------
+# OVERVIEW TAB
 # ---------------------------
 with tab1:
 
@@ -299,8 +213,10 @@ with tab1:
         )
 
         st.plotly_chart(fig, use_container_width=True)
+
+
 # ---------------------------
-# UMAP visualisation Tab
+# UMAP TAB
 # ---------------------------
 with tab2:
 
@@ -309,8 +225,6 @@ with tab2:
     if st.session_state.embedding is None:
         st.info("Run OxID to generate embeddings.")
     else:
-        from viz import plot_components
-
         fig = plot_components(
             st.session_state.embedding["coords"],
             st.session_state.embedding["df"],
@@ -319,13 +233,14 @@ with tab2:
 
         st.plotly_chart(fig, use_container_width=True)
 
+
 # ---------------------------
-# OPTIONAL INFO SECTION
+# ABOUT
 # ---------------------------
 with st.expander("About this tool"):
     st.write(
         """
-        Oxid is a scientific tool for analysing magnetic mineral data.
+        OxID is a scientific tool for analysing magnetic mineral data.
         Upload datasets to visualise hysteresis loops, RT-SIRM, and ZFC-FC behaviour.
         """
     )
