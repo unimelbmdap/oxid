@@ -262,47 +262,50 @@ uploaded_files = st.file_uploader(
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-groups = {}
+if "file_groups" not in st.session_state:
+    st.session_state.file_groups = {
+        "hysteresis": [],
+        "rtsirm": [],
+        "zfcfc": [],
+    }
 
-if use_hysteresis:
-    groups["hysteresis"] = []
-
-if use_rtsirm:
-    groups["rtsirm"] = []
-
-if use_zfcfc:
-    groups["zfcfc"] = []
-
+uploaded_files = st.file_uploader(
+    "Upload .dat or MagIC files",
+    accept_multiple_files=True,
+)
 if uploaded_files:
 
     for uploaded_file in uploaded_files:
 
         path = UPLOAD_DIR / uploaded_file.name
 
-        with open(path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        # avoid rewriting every rerun
+        if not path.exists():
+            with open(path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
 
-        # =========================
-        # MAGiC DETECTION
-        # =========================
-        if path.suffix.lower() in [".txt", ".mag", ".magic"]:
+            # MagIC handling
+            if path.suffix.lower() in [".txt", ".magic", ".mag"]:
 
-            st.info(f"Processing MagIC file: {path.name}")
+                st.info(f"Processing MagIC file: {path.name}")
 
-            read_magic(
-                path=str(path),
-                output_dir=UPLOAD_DIR,
-            )
+                outputs = read_magic(
+                    path=str(path),
+                    output_dir=UPLOAD_DIR,
+                )
 
-            continue  # IMPORTANT: skip normal classification
+                # IMPORTANT: classify generated files, not original
+                for out in outputs:
+                    kind = classify_file(out)
+                    if kind in st.session_state.file_groups:
+                        st.session_state.file_groups[kind].append(out)
 
-        # =========================
-        # NORMAL OXID FILES
-        # =========================
-        file_type = classify_file(path)
+                continue
 
-        if file_type in groups:
-            groups[file_type].append(path)
+            # normal files
+            kind = classify_file(path)
+            if kind in st.session_state.file_groups:
+                st.session_state.file_groups[kind].append(path)
 
 # =========================
 # BUTTONS
@@ -326,16 +329,16 @@ plot_raw_clicked = col2.button(
 
 if plot_raw_clicked:
 
-    groups = st.session_state.file_groups
+groups = st.session_state.get("file_groups", None)
 
-    if not groups:
-
-        st.error("Upload files first.")
+if not groups or all(len(v) == 0 for v in groups.values()):
+    st.error("Upload files first")
+    st.stop()
         st.stop()
 
     figs = plot_raw_files(groups)
 
-    if not figs:
+if not figs:
 
         st.warning("No valid plots generated.")
 
