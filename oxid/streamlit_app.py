@@ -329,32 +329,35 @@ plot_raw_clicked = col2.button(
 
 if plot_raw_clicked:
 
-groups = st.session_state.get("file_groups", None)
+    groups = st.session_state.get("file_groups", None)
 
-if not groups or all(len(v) == 0 for v in groups.values()):
-    st.error("Upload files first")
-    st.stop()
+    # ------------------------
+    # Validate input
+    # ------------------------
+    if not groups or all(len(v) == 0 for v in groups.values()):
+        st.error("Upload files first")
         st.stop()
 
+    # ------------------------
+    # Generate plots
+    # ------------------------
     figs = plot_raw_files(groups)
 
-if not figs:
-
+    # ------------------------
+    # Handle empty result
+    # ------------------------
+    if not figs:
         st.warning("No valid plots generated.")
+        st.stop()
 
-    else:
+    # ------------------------
+    # Display plots
+    # ------------------------
+    st.header("Raw Data")
 
-        st.header("Raw Data")
-
-        for name, fig in figs:
-
-            st.subheader(name)
-
-            st.plotly_chart(
-                fig,
-                use_container_width=True,
-            )
-
+    for name, fig in figs:
+        st.subheader(name)
+        st.plotly_chart(fig, use_container_width=True)
 # =========================
 # RUN OXID
 # =========================
