@@ -82,8 +82,9 @@ uploaded_files = st.file_uploader(
 if uploaded_files:
 
     with tempfile.TemporaryDirectory() as tmpdir:
-for uploaded_file in uploaded_files:
+        for uploaded_file in uploaded_files:
             file_path = os.path.join(tmpdir, uploaded_file.name)
+
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
