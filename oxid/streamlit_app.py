@@ -9,7 +9,6 @@ from data import (
     RTSIRM,
     ZFCFC,
     Hysteresis,
-    MagIC,
 )
 
 from viz import plot_inputs
