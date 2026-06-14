@@ -119,7 +119,12 @@ if uploaded_files:
 # ---------------------------
 # RUN PIPELINE BUTTON
 # ---------------------------
-if st.button("🚀 Run OxID"):
+col1, col2 = st.columns(2)
+
+run_clicked = col1.button("🚀 Run OxID")
+plot_raw_clicked = col2.button("📈 Plot raw data")
+
+if plot_raw_clicked:
 
     groups = st.session_state.file_groups
 
@@ -127,6 +132,10 @@ if st.button("🚀 Run OxID"):
         st.error("Upload files first")
         st.stop()
 
+    fig = plot_raw_files(groups)
+
+    st.pyplot(fig)
+    
     # -------------------------
     # DATA PIPELINE
     # -------------------------
@@ -184,6 +193,36 @@ if st.button("🚀 Run OxID"):
 
     st.success("OxID complete: plots + UMAP generated")
 
+# ---------------------------
+# PLOTTING FUNCTIONS
+# ---------------------------
+import matplotlib.pyplot as plt
+
+def plot_raw_files(groups):
+    fig, ax = plt.subplots()
+
+    for key, path in groups.items():
+        if path is None:
+            continue
+
+        try:
+            data = pd.read_csv(path, delim_whitespace=True, header=None)
+
+            # assume first two columns are x/y
+            x = data.iloc[:, 0]
+            y = data.iloc[:, 1]
+
+            ax.plot(x, y, label=key)
+
+        except Exception as e:
+            st.warning(f"Could not plot {key}: {e}")
+
+    ax.set_title("Raw Data Plot")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.legend()
+
+    return fig
 
 # ---------------------------
 # TABS
