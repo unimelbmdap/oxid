@@ -40,7 +40,7 @@ def classify_file(path: Path):
     if stem.endswith("zfcfc" or "ZFCFC" or "ZFC-FC"):
         return "zfcfc"
 
-    if stem.endswith("hyst" or "HYST" or "HYSTERESIS"):
+    if stem.endswith("hyst" or "HYST" or "HYSTERESIS" or "HYS" or "hys"):
         return "hysteresis"
 
     return "unknown"
@@ -280,30 +280,27 @@ if uploaded_files:
         with open(path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
+        # =========================
+        # MAGiC DETECTION
+        # =========================
+        if path.suffix.lower() in [".txt", ".mag", ".magic"]:
+
+            st.info(f"Processing MagIC file: {path.name}")
+
+            read_magic(
+                path=str(path),
+                output_dir=UPLOAD_DIR,
+            )
+
+            continue  # IMPORTANT: skip normal classification
+
+        # =========================
+        # NORMAL OXID FILES
+        # =========================
         file_type = classify_file(path)
 
         if file_type in groups:
             groups[file_type].append(path)
-
-    st.session_state.file_groups = groups
-
-    st.subheader("Detected Files")
-
-    for file_type, files in groups.items():
-
-        if files:
-
-            st.success(
-                f"{file_type}: {len(files)} file(s)"
-            )
-
-            for file in files:
-                st.write(f"• {file.name}")
-
-        else:
-            st.warning(
-                f"{file_type}: none detected"
-            )
 
 # =========================
 # BUTTONS
