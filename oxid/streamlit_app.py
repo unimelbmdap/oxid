@@ -3,10 +3,11 @@ from pathlib import Path
 import tempfile
 
 from data import data_files_list, iron_oxides_list, collate_results
-from viz import plot_inputs, plot_components
 from features import build_feature_vectors, dimensionality_reduction
 import pandas as pd
 
+from data import Hysteresis, RTSIRM, ZFCFC
+from viz import plot_moment
 
 # ---------------------------
 # SESSION STATE INIT
@@ -132,10 +133,14 @@ if plot_raw_clicked:
         st.error("Upload files first")
         st.stop()
 
-    fig = plot_raw_files(groups)
+    figs = plot_raw_files(groups)
 
-    st.pyplot(fig)
-    
+    if not figs:
+        st.warning("No valid files to plot")
+    else:
+        for kind, fig in figs:
+            st.subheader(kind)
+            st.plotly_chart(fig, use_container_width=True)
     # -------------------------
     # DATA PIPELINE
     # -------------------------
@@ -196,33 +201,33 @@ if plot_raw_clicked:
 # ---------------------------
 # PLOTTING FUNCTIONS
 # ---------------------------
-import matplotlib.pyplot as plt
-
 def plot_raw_files(groups):
-    fig, ax = plt.subplots()
+    figs = []
 
-    for key, path in groups.items():
+    for kind, path in groups.items():
         if path is None:
             continue
 
         try:
-            data = pd.read_csv(path, delim_whitespace=True, header=None)
+            if kind == "hysteresis":
+                data = Hysteresis(path)
 
-            # assume first two columns are x/y
-            x = data.iloc[:, 0]
-            y = data.iloc[:, 1]
+            elif kind == "rtsirm":
+                data = RTSIRM(path)
 
-            ax.plot(x, y, label=key)
+            elif kind == "zfcfc":
+                data = ZFCFC(path)
+
+            else:
+                continue
+
+            fig = plot_moment(data, title=path.name, show=False)
+            figs.append((kind, fig))
 
         except Exception as e:
-            st.warning(f"Could not plot {key}: {e}")
+            st.warning(f"Failed to plot {kind}: {e}")
 
-    ax.set_title("Raw Data Plot")
-    ax.set_xlabel("X")
-    ax.set_ylabel("Y")
-    ax.legend()
-
-    return fig
+    return figs
 
 # ---------------------------
 # TABS
