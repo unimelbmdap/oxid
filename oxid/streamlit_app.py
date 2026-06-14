@@ -53,6 +53,10 @@ def classify_file(path: Path):
 # =========================
 # RAW PLOT (Plotly + CLI-consistent)
 # =========================
+from data import Hysteresis, RTSIRM, ZFCFC
+from viz import plot_moment
+
+
 def plot_raw_files(groups):
     figs = []
 
@@ -63,51 +67,27 @@ def plot_raw_files(groups):
         try:
             if kind == "hysteresis":
                 data = Hysteresis(path)
+
             elif kind == "rtsirm":
                 data = RTSIRM(path)
+
             elif kind == "zfcfc":
                 data = ZFCFC(path)
+
             else:
                 continue
 
-            fig = go.Figure()
-
-            # robust column detection
-            x = None
-            y = None
-
-            for col in data.columns:
-                c = col.lower()
-                if x is None and ("field" in c or "x" == c):
-                    x = data[col]
-                if y is None and ("moment" in c or "mag" in c or "y" == c):
-                    y = data[col]
-
-            # fallback if structure is array-like
-            if x is None or y is None:
-                arr = data.values
-                x = arr[:, 0]
-                y = arr[:, 1]
-
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=y,
-                    mode="lines",
-                    name=kind,
-                )
-            )
-
-            fig.update_layout(
-                title=f"{kind}: {path.name}",
-                xaxis_title="Field",
-                yaxis_title="Moment",
+            fig = plot_moment(
+                data,
+                title=path.name,
+                show=False,
+                output=None,
             )
 
             figs.append((kind, fig))
 
         except Exception as e:
-            st.warning(f"Failed plotting {kind}: {e}")
+            st.error(f"Failed plotting {kind}: {e}")
 
     return figs
 
@@ -174,8 +154,6 @@ use_hysteresis = st.sidebar.checkbox("Hysteresis", True)
 use_rtsirm = st.sidebar.checkbox("RT-SIRM", True)
 use_zfcfc = st.sidebar.checkbox("ZFC-FC", True)
 
-gradients = st.sidebar.checkbox("Use Gradients", False)
-
 mode = st.sidebar.selectbox("Plot Mode", ["lines+markers", "lines", "markers"])
 
 
@@ -189,41 +167,53 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
+# Persistent upload directory
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
 groups = {}
 
 if use_hysteresis:
-    groups["hysteresis"] = None
-if use_rtsirm:
-    groups["rtsirm"] = None
-if use_zfcfc:
-    groups["zfcfc"] = None
+    groups["hysteresis"] = []
 
+if use_rtsirm:
+    groups["rtsirm"] = []
+
+if use_zfcfc:
+    groups["zfcfc"] = []
 
 if uploaded_files:
-    import tempfile
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    for uploaded_file in uploaded_files:
 
-        for f in uploaded_files:
-            path = Path(tmpdir) / f.name
-            path.write_bytes(f.getbuffer())
+        path = UPLOAD_DIR / uploaded_file.name
 
-            kind = classify_file(path)
+        with open(path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-            if kind in groups:
-                groups[kind] = path
+        file_type = classify_file(path)
+
+        if file_type in groups:
+            groups[file_type].append(path)
 
     st.session_state.file_groups = groups
 
-    st.subheader("Detected files")
+    st.subheader("Detected Files")
 
-    for k, v in groups.items():
-        if v:
-            st.success(f"{k}: {v.name}")
+    for file_type, files in groups.items():
+
+        if len(files) > 0:
+
+            st.success(
+                f"{file_type}: {len(files)} file(s) detected"
+            )
+
+            for file in files:
+                st.write(f"• {file.name}")
+
         else:
-            st.warning(f"{k}: missing")
-
-
+            st.warning(f"{file_type}: missing")
+            
 # =========================
 # BUTTONS
 # =========================
