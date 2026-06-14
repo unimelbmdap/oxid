@@ -40,7 +40,7 @@ def classify_file(path: Path):
     if stem.endswith("zfcfc" or "ZFCFC" or "ZFC-FC"):
         return "zfcfc"
 
-    if stem.endswith("hys" or "HYS" or "HYSTERESIS"):
+    if stem.endswith("hyst" or "HYST" or "HYSTERESIS"):
         return "hysteresis"
 
     return "unknown"
@@ -142,7 +142,7 @@ def build_embedding_dataframe(upload_dir, groups):
 
     for sample_name, row in samples.items():
 
-        row["Group"] = "Uploaded"
+        row["Group"] = "Unassigned"
         row["base_dir"] = str(upload_dir)
 
         rows.append(row)
@@ -407,26 +407,37 @@ if st.session_state.embedding is None:
 else:
 
     fig = plot_components(
-        st.session_state.embedding["coords"],
-        st.session_state.embedding["df"],
-        title="OxID UMAP Projection",
-        show=False,
-    )
+    st.session_state.embedding["coords"],
+    st.session_state.embedding["df"],
+    title="OxID UMAP Projection",
+    color_column="Group",
+    show=False,
+)
 
     st.plotly_chart(
         fig,
         use_container_width=True,
     )
 
-    with st.expander(
-        "Sample Table",
-        expanded=False,
-    ):
+    with st.expander("Sample Grouping", expanded=True):
 
-        st.dataframe(
-            st.session_state.embedding["df"],
-            use_container_width=True,
-        )
+    editable_df = st.data_editor(
+        st.session_state.embedding["df"],
+        column_config={
+            "Group": st.column_config.TextColumn(
+                "Group",
+                help="Assign samples to groups",
+            ),
+        },
+        disabled=[
+            c for c in st.session_state.embedding["df"].columns
+            if c != "Group"
+        ],
+        use_container_width=True,
+        key="group_editor",
+    )
+
+    st.session_state.embedding["df"] = editable_df
 
 # =========================
 # ABOUT
