@@ -84,9 +84,10 @@ if uploaded_files:
     with tempfile.TemporaryDirectory() as tmpdir:
 
         # -----------------------
-        # SAVE + CLASSIFY FILES
-        # -----------------------
-        groups = {
+# SAVE + CLASSIFY FILES
+# -----------------------
+
+groups = {}
 
 if use_hysteresis:
     groups["hysteresis"] = None
@@ -96,7 +97,6 @@ if use_rtsirm:
 
 if use_zfcfc:
     groups["zfcfc"] = None
-        }
 
         for f in uploaded_files:
             path = Path(tmpdir) / f.name
