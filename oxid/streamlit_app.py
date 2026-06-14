@@ -3,7 +3,7 @@ from pathlib import Path
 from collections import defaultdict
 import pandas as pd
 
-from oxid import read_magic
+from read_magic import read_magic
 
 from data import Hysteresis, RTSIRM, ZFCFC
 
