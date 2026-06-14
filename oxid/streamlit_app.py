@@ -41,27 +41,44 @@ mode = st.sidebar.selectbox(
 )
 
 
-st.sidebar.subheader("Iron Oxides")
-
-magnetite = st.sidebar.checkbox("Magnetite", value=True)
-hematite = st.sidebar.checkbox("Hematite", value=True)
-goethite = st.sidebar.checkbox("Goethite", value=True)
-maghemite = st.sidebar.checkbox("Maghemite", value=True)
-algoethite = st.sidebar.checkbox("Al-Goethite", value=True)
-
 
 # ---------------------------
 # FILE UPLOADS
 # ---------------------------
 st.header("Data Upload")
 
-hysteresis_file = st.file_uploader("Hysteresis file")
-rtsirm_file = st.file_uploader("RT-SIRM file")
-zfcfc_file = st.file_uploader("ZFC-FC file")
-MagIC_file = st.file_uploader("MagIC file (optional)")
+mode = st.radio(
+    "Upload mode",
+    ["Multiple files", "ZIP folder"],
+)
 
+file_paths = []
 
+with tempfile.TemporaryDirectory() as tmpdir:
 
+    if mode == "Multiple files":
+
+        uploaded_files = st.file_uploader(
+            "Upload .dat files",
+            accept_multiple_files=True
+        )
+
+        if uploaded_files:
+            for f in uploaded_files:
+                path = Path(tmpdir) / f.name
+                path.write_bytes(f.getbuffer())
+                file_paths.append(path)
+
+    else:
+
+        zip_file = st.file_uploader("Upload ZIP file", type="zip")
+
+        if zip_file:
+            import zipfile
+            with zipfile.ZipFile(zip_file) as z:
+                z.extractall(tmpdir)
+
+            file_paths = list(Path(tmpdir).rglob("*"))
 # ---------------------------
 # MAIN ACTION
 # ---------------------------
