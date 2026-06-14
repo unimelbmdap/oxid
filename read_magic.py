@@ -155,7 +155,7 @@ def read_magic(
                 x_column="Magnetic Field (Oe)",
             )
     
-
+return generated_files
 
 if __name__ == "__main__":
     app()
