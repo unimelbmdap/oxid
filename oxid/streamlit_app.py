@@ -404,8 +404,10 @@ if st.session_state.embedding is None:
 else:
 
     fig = plot_components(
-    st.session_state.embedding["coords"],
-    st.session_state.embedding["df"],
+    st.session_state.embedding = {
+    "coords": embedding,
+    "df": df,
+}
     title="OxID UMAP Projection",
     color_column="Group",
     show=False,
