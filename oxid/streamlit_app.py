@@ -299,9 +299,8 @@ if uploaded_files:
         output_dir=UPLOAD_DIR,
     )
 
-    # safety guard
     if outputs is None:
-        st.error("MagIC conversion returned nothing")
+        st.error("MagIC conversion failed")
         continue
 
     for out in outputs:
