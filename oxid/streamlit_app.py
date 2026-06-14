@@ -3,8 +3,15 @@ from pathlib import Path
 from collections import defaultdict
 import pandas as pd
 
-from read_magic import read_magic
+outputs = read_magic(
+    path=path,
+    output_dir=UPLOAD_DIR,
+)
 
+for out in outputs:
+    kind = classify_file(out)
+    st.session_state.file_groups[kind].append(out)
+    
 from data import Hysteresis, RTSIRM, ZFCFC
 
 from features import (
