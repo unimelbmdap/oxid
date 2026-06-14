@@ -3,14 +3,7 @@ from pathlib import Path
 from collections import defaultdict
 import pandas as pd
 
-outputs = read_magic(
-    path=path,
-    output_dir=UPLOAD_DIR,
-)
-
-for out in outputs:
-    kind = classify_file(out)
-    st.session_state.file_groups[kind].append(out)
+from read_magic import read_magic
     
 from data import Hysteresis, RTSIRM, ZFCFC
 
@@ -240,11 +233,10 @@ if uploaded_files:
                 output_dir=UPLOAD_DIR,
             )
 
-            if outputs:
-                for out in outputs:
-                    kind = classify_file(out)
-                    if kind in st.session_state.file_groups:
-                        st.session_state.file_groups[kind].append(out)
+            for out in outputs:
+                kind = classify_file(out)
+                if kind in st.session_state.file_groups:
+                    st.session_state.file_groups[kind].append(out)
 
             continue
 
