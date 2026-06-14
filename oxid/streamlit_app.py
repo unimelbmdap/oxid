@@ -397,47 +397,48 @@ st.header("UMAP Embedding")
 
 if st.session_state.embedding is None:
 
-    st.info(
-        "Upload files and click 'Run OxID'."
-    )
+    st.info("Upload files and click 'Run OxID'.")
 
 else:
 
+    # -------------------------
+    # UMAP plot
+    # -------------------------
     fig = plot_components(
-    st.session_state.embedding = {
-    "coords": embedding,
-    "df": df,
-}
-    title="OxID UMAP Projection",
-    color_column="Group",
-    show=False,
-)
+        st.session_state.embedding["coords"],
+        st.session_state.embedding["df"],
+        title="OxID UMAP Projection",
+        color_column="Group",
+        show=False,
+    )
 
     st.plotly_chart(
         fig,
         use_container_width=True,
     )
 
-with st.expander("Sample Grouping", expanded=True):
+    # -------------------------
+    # Editable grouping table
+    # -------------------------
+    with st.expander("Sample Grouping", expanded=True):
 
-    editable_df = st.data_editor(
-        st.session_state.embedding["df"],
-        column_config={
-            "Group": st.column_config.TextColumn(
-                "Group",
-                help="Assign samples to groups",
-            ),
-        },
-        disabled=[
-            c for c in st.session_state.embedding["df"].columns
-            if c != "Group"
-        ],
-        use_container_width=True,
-        key="group_editor",
-    )
+        editable_df = st.data_editor(
+            st.session_state.embedding["df"],
+            column_config={
+                "Group": st.column_config.TextColumn(
+                    "Group",
+                    help="Assign samples to groups",
+                ),
+            },
+            disabled=[
+                c for c in st.session_state.embedding["df"].columns
+                if c != "Group"
+            ],
+            use_container_width=True,
+            key="group_editor",
+        )
 
-    st.session_state.embedding["df"] = editable_df
-
+        st.session_state.embedding["df"] = editable_df
 # =========================
 # ABOUT
 # =========================
