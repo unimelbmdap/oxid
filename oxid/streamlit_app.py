@@ -394,7 +394,7 @@ if run_clicked:
             embedding, df = run_pipeline(
     groups,
     UPLOAD_DIR,
-    use_hysteresis=use_hysteresis,
+    use_hysteresis=use_hyst,
     use_rtsirm=use_rtsirm,
     use_zfcfc=use_zfcfc,
 )
