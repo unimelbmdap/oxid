@@ -69,17 +69,17 @@ def classify_file(path: Path):
 # =========================
 
 def sample_name_from_file(path: Path):
-    stem = path.stem
-    lower = stem.lower()
+    stem = path.stem.lower()
 
-    if lower.endswith("_hyst" or "_HYST"):
-        return stem[:-9]
+    suffixes = [
+        "_hyst", "-hyst",
+        "_rtsirm", "-rtsirm",
+        "_zfcfc", "-zfcfc",
+    ]
 
-    if lower.endswith("_rtsirm" or "_RTSIRM"):
-        return stem[:11]
-
-    if lower.endswith("_zfcfc" or "_ZFCFC"):
-        return stem[:-10]
+    for suf in suffixes:
+        if stem.endswith(suf):
+            return stem[:-len(suf)]
 
     return stem
 
@@ -258,11 +258,6 @@ st.title("🧲 OxID Dashboard")
 # SIDEBAR
 # =========================
 
-st.sidebar.header("Controls")
-
-use_hysteresis = st.sidebar.checkbox("Hysteresis", True)
-use_rtsirm = st.sidebar.checkbox("RT-SIRM", True)
-use_zfcfc = st.sidebar.checkbox("ZFC-FC", True)
 
 
 # =========================
