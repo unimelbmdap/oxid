@@ -113,6 +113,13 @@ def plot_raw_files(groups):
 def build_embedding_dataframe(upload_dir, groups):
     samples = defaultdict(dict)
 
+row = {
+    "Name": sample_name,
+    "Hysteresis": None,
+    "RTSIRM": None,
+    "ZFCFC": None,
+}
+
     for path in groups.get("hysteresis", []):
         sample = sample_name_from_file(path)
         samples[sample]["Name"] = sample
@@ -141,38 +148,54 @@ def build_embedding_dataframe(upload_dir, groups):
 # PIPELINE
 # =========================
 
-def run_pipeline(groups, upload_dir):
+def run_pipeline(
+    groups,
+    upload_dir,
+    use_hysteresis=True,
+    use_rtsirm=True,
+    use_zfcfc=True,
+):
     df = build_embedding_dataframe(upload_dir, groups)
 
+    # ---------------------------------
+    # Keep only samples with required
+    # measurements
+    # ---------------------------------
+
+    required = []
+
+    if use_hysteresis:
+        required.append("Hysteresis")
+
+    if use_rtsirm:
+        required.append("RTSIRM")
+
+    if use_zfcfc:
+        required.append("ZFCFC")
+
+    for col in required:
+        if col in df.columns:
+            df = df[df[col].notna()]
+
+    st.write(f"Samples after filtering: {len(df)}")
+
     if len(df) < 2:
-        raise ValueError("UMAP requires at least two samples.")
+        raise ValueError(
+            "Need at least two samples with the selected measurements."
+        )
 
     vectors = build_feature_vectors(
         df,
-        hysteresis=True,
-        rtsirm=True,
-        zfcfc=True,
+        hysteresis=use_hysteresis,
+        rtsirm=use_rtsirm,
+        zfcfc=use_zfcfc,
         points=250,
         features=20,
         include_normalized=True,
         include_unnormalized=True,
     )
 
-    if len(vectors) < 2:
-        raise ValueError("Unable to generate enough feature vectors.")
-
-    n_neighbors = min(15, max(2, len(vectors) - 1))
-
-    embedding = dimensionality_reduction(
-        vectors,
-        n_neighbors=n_neighbors,
-        min_dist=0.1,
-        seed=0,
-        n_components=2,
-        force=True,
-    )
-
-    return embedding, df
+    ...
 
 
 # =========================
@@ -210,9 +233,21 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+st.session_state.file_groups = {
+    "hysteresis": [],
+    "rtsirm": [],
+    "zfcfc": [],
+}
+current_files = {
+    uploaded_file.name
+    for uploaded_file in uploaded_files
+}
 
+for path in UPLOAD_DIR.glob("*"):
+
+    if path.name not in current_files:
+        path.unlink(missing_ok=True)
+        
 if uploaded_files:
 
     for uploaded_file in uploaded_files:
@@ -223,23 +258,38 @@ if uploaded_files:
             with open(path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
 
+        kind = classify_file(path)
+
+        if kind in st.session_state.file_groups:
+            st.session_state.file_groups[kind].append(path)
+
         # ---------------- MagIC ----------------
-        if path.suffix.lower() in [".txt", ".mag", ".magic"]:
+       if "magic_processed" not in st.session_state:
+    st.session_state.magic_processed = set()
+    
+        if path.suffix.lower() in [".txt", ".magic", ".mag"]:
 
-            st.info(f"Processing MagIC file: {path.name}")
+    if path.name not in st.session_state.magic_processed:
 
-            outputs = read_magic(
-                path=str(path),
-                output_dir=UPLOAD_DIR,
-            )
+        st.info(f"Processing MagIC file: {path.name}")
+
+        outputs = read_magic(
+            path=str(path),
+            output_dir=UPLOAD_DIR,
+        )
+
+        st.session_state.magic_processed.add(path.name)
+
+        if outputs:
 
             for out in outputs:
+
                 kind = classify_file(out)
+
                 if kind in st.session_state.file_groups:
                     st.session_state.file_groups[kind].append(out)
 
-            continue
-
+    continue
         # ---------------- Normal files ----------------
         kind = classify_file(path)
 
@@ -296,7 +346,13 @@ if run_clicked:
 
     try:
         with st.spinner("Running UMAP..."):
-            embedding, df = run_pipeline(groups, UPLOAD_DIR)
+            embedding, df = run_pipeline(
+    groups,
+    UPLOAD_DIR,
+    use_hysteresis=use_hysteresis,
+    use_rtsirm=use_rtsirm,
+    use_zfcfc=use_zfcfc,
+)
 
         st.session_state.embedding = {
             "coords": embedding,
