@@ -108,6 +108,11 @@ def build_feature_vectors(
                     feature_vectors.append(feature_vector)
 
         feature_vector = np.concatenate(feature_vectors)
+        
+        print(
+    row["Name"],
+    len(feature_vector)
+)
         vectors.append(feature_vector)
     
     vectors = np.asarray(vectors)
