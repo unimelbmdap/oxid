@@ -30,6 +30,10 @@ measurement_options = st.sidebar.multiselect(
     default=["Hysteresis", "RT-SIRM", "ZFC-FC"]
 )
 
+use_hysteresis = "Hysteresis" in measurement_options
+use_rtsirm = "RT-SIRM" in measurement_options
+use_zfcfc = "ZFC-FC" in measurement_options
+
 # =========================
 # SESSION STATE
 # =========================
