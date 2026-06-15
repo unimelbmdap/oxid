@@ -107,24 +107,28 @@ def build_feature_vectors(
                 if include_unnormalized:
                     feature_vectors.append(feature_vector)
 
-        feature_vector = np.concatenate(feature_vectors)
-        
-        print(
-    row["Name"],
-    len(feature_vector)
-)
+        [type(d).__name__ for d in datasets],
+            len(feature_vector),
+        )
+
         vectors.append(feature_vector)
-    
-    import numpy as np
 
-max_len = max(len(v) for v in vectors)
+    # -----------------------------------
+    # Check vector lengths
+    # -----------------------------------
 
-vectors = np.array([
-    np.pad(v, (0, max_len - len(v)), constant_values=0)
-    for v in vectors
-])
+    lengths = {len(v) for v in vectors}
 
-return vectors    
+    print("Vector lengths:", sorted(lengths))
+
+    if len(lengths) != 1:
+        raise ValueError(
+            f"Inconsistent feature vector lengths: {sorted(lengths)}"
+        )
+
+    vectors = np.asarray(vectors)
+
+    return vectors
 
 
 def dimensionality_reduction(
