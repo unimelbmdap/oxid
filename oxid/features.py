@@ -82,32 +82,32 @@ def build_feature_vectors(
             # Get the maximum value for this 
             max_value = None
             for regime, arrays in data.items():
-                if len(arrays[1]) == 0:
-                    raise ValueError(f"Problem with {regime}. Check the data in {dataset.path}")
+    # Interpolate results to grid
+    x, y = arrays[0], arrays[1]
+    interpolated = np.interp(x_values[regime], x, y)
 
-                my_max = arrays[1].max()
-                max_value = my_max if max_value is None else np.maximum(max_value, my_max)
+    # Extract features
+    if features:
+        fft_values = np.fft.fft(interpolated)
+        positive_magnitudes = np.abs(
+            fft_values[:len(fft_values)//2]
+        )
+        feature_vector = positive_magnitudes[:features]
+    else:
+        feature_vector = interpolated
 
-            for regime, arrays in data.items():
-                # Interpolate results to grid
-                x,y = arrays[0], arrays[1]
-                interpolated = np.interp(x_values[regime], x, y)
+    assert (
+        include_normalized or include_unnormalized
+    ), "You must include at least one of normalized or unnormalized data"
 
-                # Extract features
-                if features:
-                    fft_values = np.fft.fft(interpolated)
-                    positive_magnitudes = np.abs(fft_values[:len(fft_values)//2])
-                    feature_vector = positive_magnitudes[:features]
-                else:
-                    feature_vector = interpolated
+    if include_normalized:
+        feature_vectors.append(feature_vector / max_value)
 
-                assert include_normalized or include_unnormalized, f"You must include at least one of normalized or unnormalized data"
-                if include_normalized:
-                    feature_vectors.append(feature_vector/max_value)
-                if include_unnormalized:
-                    feature_vectors.append(feature_vector)
+    if include_unnormalized:
+        feature_vectors.append(feature_vector)
 
-                feature_vector = np.concatenate(feature_vectors)
+# Finished processing ALL datasets/regimes for this sample
+feature_vector = np.concatenate(feature_vectors)
 
 print(
     row["Name"],
@@ -116,7 +116,6 @@ print(
 )
 
 vectors.append(feature_vector)
-
                 
 
         print(
@@ -130,14 +129,18 @@ vectors.append(feature_vector)
     # Make vectors equal length
     # -----------------------------------
 
-    max_len = max(len(v) for v in vectors)
+    lengths = {len(v) for v in vectors}
 
-    vectors = np.array([
-        np.pad(v, (0, max_len - len(v)), constant_values=0)
-        for v in vectors
-    ])
+print("Vector lengths:", sorted(lengths))
 
-    return vectors
+if len(lengths) != 1:
+    raise ValueError(
+        f"Inconsistent feature vector lengths: {sorted(lengths)}"
+    )
+
+vectors = np.asarray(vectors)
+
+return vectors
 
     
 
