@@ -151,41 +151,27 @@ def build_embedding_dataframe(upload_dir, groups):
 # PIPELINE
 # =========================
 
-def run_pipeline(
-    groups,
-    upload_dir,
-    use_hysteresis=True,
-    use_rtsirm=True,
-    use_zfcfc=True,
-):
+def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
+
     df = build_embedding_dataframe(upload_dir, groups)
 
-    # ---------------------------------
-    # Keep only samples with required
-    # measurements
-    # ---------------------------------
-
-    required = []
-
-    if use_hysteresis:
-        required.append("Hysteresis")
-
-    if use_rtsirm:
-        required.append("RTSIRM")
-
-    if use_zfcfc:
-        required.append("ZFCFC")
-
-    for col in required:
-        if col in df.columns:
-            df = df[df[col].notna()]
-
-    st.write(f"Samples after filtering: {len(df)}")
-
     if len(df) < 2:
-        raise ValueError(
-            "Need at least two samples with the selected measurements."
-        )
+        raise ValueError("UMAP requires at least two samples.")
+
+    # =========================
+    # STEP 2 — FILTER HERE (IMPORTANT)
+    # =========================
+    if not use_hysteresis:
+        df["Hysteresis"] = None
+
+    if not use_rtsirm:
+        df["RTSIRM"] = None
+
+    if not use_zfcfc:
+        df["ZFCFC"] = None
+
+    # OR better (cleaner hard filter):
+    # df = only keep columns corresponding to selected toggles
 
     vectors = build_feature_vectors(
         df,
@@ -198,8 +184,18 @@ def run_pipeline(
         include_unnormalized=True,
     )
 
-    ...
+    n_neighbors = min(15, max(2, len(vectors) - 1))
 
+    embedding = dimensionality_reduction(
+        vectors,
+        n_neighbors=n_neighbors,
+        min_dist=0.1,
+        seed=0,
+        n_components=2,
+        force=True,
+    )
+
+    return embedding, df
 
 # =========================
 # PAGE CONFIG
@@ -267,10 +263,10 @@ if uploaded_files:
             st.session_state.file_groups[kind].append(path)
 
         # ---------------- MagIC ----------------
-       if "magic_processed" not in st.session_state:
+    if "magic_processed" not in st.session_state:
     st.session_state.magic_processed = set()
     
-        if path.suffix.lower() in [".txt", ".magic", ".mag"]:
+    if path.suffix.lower() in [".txt", ".magic", ".mag"]:
 
     if path.name not in st.session_state.magic_processed:
 
