@@ -83,28 +83,28 @@ def build_feature_vectors(
             max_value = None
             for regime, arrays in data.items():
     # Interpolate results to grid
-    x, y = arrays[0], arrays[1]
-    interpolated = np.interp(x_values[regime], x, y)
+            x, y = arrays[0], arrays[1]
+            interpolated = np.interp(x_values[regime], x, y)
 
-    # Extract features
-    if features:
-        fft_values = np.fft.fft(interpolated)
-        positive_magnitudes = np.abs(
-            fft_values[:len(fft_values)//2]
-        )
-        feature_vector = positive_magnitudes[:features]
-    else:
-        feature_vector = interpolated
+            # Extract features
+            if features:
+                fft_values = np.fft.fft(interpolated)
+                positive_magnitudes = np.abs(
+                    fft_values[:len(fft_values)//2]
+                )
+                feature_vector = positive_magnitudes[:features]
+            else:
+                feature_vector = interpolated
 
-    assert (
-        include_normalized or include_unnormalized
-    ), "You must include at least one of normalized or unnormalized data"
+            assert (
+                include_normalized or include_unnormalized
+            ), "You must include at least one of normalized or unnormalized data"
 
-    if include_normalized:
-        feature_vectors.append(feature_vector / max_value)
+            if include_normalized:
+                feature_vectors.append(feature_vector / max_value)
 
-    if include_unnormalized:
-        feature_vectors.append(feature_vector)
+            if include_unnormalized:
+                feature_vectors.append(feature_vector)
 
 # Finished processing ALL datasets/regimes for this sample
 feature_vector = np.concatenate(feature_vectors)
