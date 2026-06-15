@@ -1,25 +1,3 @@
-from pathlib import Path
-import numpy as np
-import pandas as pd
-import umap
-from collections import defaultdict
-from rich.progress import track
-
-from data import Hysteresis, RTSIRM, ZFCFC
-
-
-def normalize_column_name(name):
-    return name.lower().replace("-", "")
-
-
-def find_column(df, name):
-    name = normalize_column_name(name)
-    for column in df.columns:
-        if name in normalize_column_name(column):
-            return column
-    return None
-
-
 def build_feature_vectors(
     df: pd.DataFrame,
     hysteresis: bool = True,
@@ -85,12 +63,14 @@ def build_feature_vectors(
 
             max_value = None
 
+            # compute scaling
             for regime, arrays in data.items():
                 if len(arrays[1]) == 0:
                     continue
                 m = np.max(arrays[1])
                 max_value = m if max_value is None else max(max_value, m)
 
+            # per regime features
             for regime, arrays in data.items():
                 x, y = arrays[0], arrays[1]
 
@@ -100,7 +80,7 @@ def build_feature_vectors(
                 interp = np.interp(x_values[regime], x, y)
 
                 fft_vals = np.fft.fft(interp)
-                mags = np.abs(fft_vals[: len(fft_vals) // 2])
+                mags = np.abs(fft_vals[: len(fft_vals)//2])
 
                 feat = mags[:features]
                 feat = np.pad(feat, (0, features - len(feat)))
@@ -114,44 +94,19 @@ def build_feature_vectors(
         if len(sample_features) == 0:
             continue
 
-        vectors.append(np.concatenate(sample_features))
+        feature_vector = np.concatenate(sample_features)
 
+        if verbose:
+            print(row.get("Name", ""), feature_vector.shape)
+
+        vectors.append(feature_vector)
+
+    # enforce consistency
     lengths = {len(v) for v in vectors}
+
     print("Vector lengths:", sorted(lengths))
 
     if len(lengths) != 1:
         raise ValueError(f"Inconsistent feature vector lengths: {sorted(lengths)}")
 
     return np.asarray(vectors)
-
-
-def dimensionality_reduction(
-    vectors: np.ndarray,
-    n_neighbors: int = 15,
-    min_dist: float = 0.1,
-    seed: int = 0,
-    n_components: int = 2,
-    reducer_path: Path | str | None = None,
-    force: bool = False,
-):
-
-    if reducer_path and Path(reducer_path).exists() and not force:
-        import pickle
-        with open(reducer_path, "rb") as f:
-            model = pickle.load(f)
-    else:
-        model = umap.UMAP(
-            n_neighbors=n_neighbors,
-            min_dist=min_dist,
-            n_components=n_components,
-            random_state=seed,
-        )
-        model.fit(vectors)
-
-        if reducer_path:
-            import pickle
-            Path(reducer_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(reducer_path, "wb") as f:
-                pickle.dump(model, f)
-
-    return model.transform(vectors)
