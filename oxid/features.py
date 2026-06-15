@@ -1,3 +1,23 @@
+from pathlib import Path
+import umap
+import numpy as np
+from collections import defaultdict
+import pandas as pd
+from rich.progress import track
+
+from data import Hysteresis, RTSIRM, ZFCFC
+
+def noramlize_column_name(name):
+    return name.lower().replace("-", "")
+
+
+def find_column(df, name):
+    name = noramlize_column_name(name)
+    for column in df.columns:
+        if name in noramlize_column_name(column):
+            return column
+    return None
+    
 def build_feature_vectors(
     df: pd.DataFrame,
     hysteresis: bool = True,
