@@ -1,3 +1,6 @@
+import os
+st.write(os.listdir())
+
 import streamlit as st
 from pathlib import Path
 from collections import defaultdict
@@ -297,7 +300,7 @@ if uploaded_files:
 
         if kind in st.session_state.file_groups:
             st.session_state.file_groups[kind].append(path)
-            
+
 # =========================
 # BUTTONS
 # =========================
