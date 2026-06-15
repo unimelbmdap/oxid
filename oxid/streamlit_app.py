@@ -186,11 +186,6 @@ def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
         features=20,
         include_normalized=True,
         include_unnormalized=True,
-        print(
-    row["Name"],
-    [type(d).__name__ for d in datasets],
-    len(feature_vector)
-)
     )
 
     n_neighbors = min(15, max(2, len(vectors) - 1))
