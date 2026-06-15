@@ -130,7 +130,8 @@ def build_feature_vectors(
         raise ValueError(f"Inconsistent feature vector lengths: {sorted(lengths)}")
 
     return np.asarray(vectors)
-    def dimensionality_reduction(
+
+def dimensionality_reduction(
     vectors: np.ndarray,
     n_neighbors:int = 15,
     min_dist:float = 0.1,
