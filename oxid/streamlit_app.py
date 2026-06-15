@@ -72,14 +72,14 @@ def sample_name_from_file(path: Path):
     stem = path.stem
     lower = stem.lower()
 
-    if lower.endswith("_hys"):
-        return stem[:-4]
+    if lower.endswith("_hyst" or "_HYST"):
+        return stem[:-9]
 
-    if lower.endswith("_rtsirm"):
-        return stem[:-7]
+    if lower.endswith("_rtsirm" or "_RTSIRM"):
+        return stem[:11]
 
-    if lower.endswith("_zfcfc"):
-        return stem[:-6]
+    if lower.endswith("_zfcfc" or "_ZFCFC"):
+        return stem[:-10]
 
     return stem
 
