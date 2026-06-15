@@ -109,6 +109,16 @@ def build_feature_vectors(
 
                 feature_vector = np.concatenate(feature_vectors)
 
+print(
+    row["Name"],
+    [type(d).__name__ for d in datasets],
+    len(feature_vector)
+)
+
+vectors.append(feature_vector)
+
+                
+
         print(
             row["Name"],
             len(feature_vector)
