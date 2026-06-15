@@ -22,6 +22,15 @@ from viz import (
 UPLOAD_DIR = Path("uploads")
 
 # =========================
+# UI
+# =========================
+measurement_options = st.sidebar.multiselect(
+    "Measurement types",
+    ["Hysteresis", "RT-SIRM", "ZFC-FC"],
+    default=["Hysteresis", "RT-SIRM", "ZFC-FC"]
+)
+
+# =========================
 # SESSION STATE
 # =========================
 
@@ -161,16 +170,6 @@ def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
 
     df = build_embedding_dataframe(upload_dir, groups)
 
-    # Filter to samples that contain all selected measurements
-    if use_hysteresis:
-        df = df[df["Hysteresis"].notna()]
-
-    if use_rtsirm:
-        df = df[df["RTSIRM"].notna()]
-
-    if use_zfcfc:
-        df = df[df["ZFCFC"].notna()]
-
     print(
         f"Using {len(df)} complete samples after measurement filtering"
     )
@@ -180,16 +179,16 @@ def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
             "Need at least two samples with the selected measurements."
         )
 
-    vectors = build_feature_vectors(
-        df,
-        hysteresis=use_hysteresis,
-        rtsirm=use_rtsirm,
-        zfcfc=use_zfcfc,
-        points=250,
-        features=20,
-        include_normalized=True,
-        include_unnormalized=True,
-    )
+ vectors = build_feature_vectors(
+    df,
+    hysteresis=use_hysteresis,
+    rtsirm=use_rtsirm,
+    zfcfc=use_zfcfc,
+    points=250,
+    features=20,
+    include_normalized=True,
+    include_unnormalized=False,  # strongly recommended (see note below)
+)
 
     n_neighbors = min(15, max(2, len(vectors) - 1))
 
