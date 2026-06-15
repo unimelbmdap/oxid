@@ -1,3 +1,6 @@
+import os
+import streamlit as st
+
 import streamlit as st
 from pathlib import Path
 from collections import defaultdict
@@ -16,6 +19,7 @@ from viz import (
     plot_components,
     plot_moment,
 )
+UPLOAD_DIR = Path("uploads")
 
 # =========================
 # SESSION STATE
@@ -232,11 +236,10 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
-UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 # ------------------------
-# SESSION STATE INIT (ONCE ONLY)
+# SESSION STATE INIT
 # ------------------------
 if "magic_processed" not in st.session_state:
     st.session_state.magic_processed = set()
@@ -249,7 +252,7 @@ if "file_groups" not in st.session_state:
     }
 
 # ------------------------
-# RESET GROUPS EACH RUN (IMPORTANT FOR STREAMLIT)
+# RESET GROUPS EACH RERUN
 # ------------------------
 st.session_state.file_groups = {
     "hysteresis": [],
@@ -258,7 +261,7 @@ st.session_state.file_groups = {
 }
 
 # ------------------------
-# PROCESS UPLOADS
+# PROCESS UPLOADED FILES
 # ------------------------
 if uploaded_files:
 
@@ -266,7 +269,7 @@ if uploaded_files:
 
         path = UPLOAD_DIR / uploaded_file.name
 
-        # Always overwrite local copy (keeps UI consistent)
+        # Save uploaded file
         with open(path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
@@ -282,16 +285,18 @@ if uploaded_files:
                     output_dir=UPLOAD_DIR,
                 )
 
-                st.write ("Outputs:", outputs)
+                st.write("Outputs:")
+                st.write(outputs)
 
                 st.session_state.magic_processed.add(path.name)
 
-                if outputs:
-                    for out in outputs:
-                        kind = classify_file(out)
+            # Re-add generated .dat files every rerun
+            for generated in UPLOAD_DIR.glob("*.dat"):
 
-                        if kind in st.session_state.file_groups:
-                            st.session_state.file_groups[kind].append(out)
+                kind = classify_file(generated)
+
+                if kind in st.session_state.file_groups:
+                    st.session_state.file_groups[kind].append(generated)
 
             continue
 
@@ -301,6 +306,15 @@ if uploaded_files:
         if kind in st.session_state.file_groups:
             st.session_state.file_groups[kind].append(path)
 
+# ------------------------
+# DEBUG
+# ------------------------
+st.write("Detected files:")
+
+st.write({
+    k: [p.name for p in v]
+    for k, v in st.session_state.file_groups.items()
+})
 # =========================
 # BUTTONS
 # =========================
