@@ -142,7 +142,9 @@ def build_embedding_dataframe(upload_dir, groups):
     rows = []
 
     for sample_name, row in samples.items():
-
+        row["Hysteresis"] = row.get("Hysteresis", "Missing")
+        row["RTSIRM"] = row.get("RTSIRM", "Missing")
+        row["ZFCFC"] = row.get("ZFCFC", "Missing")
         row["Group"] = "Unassigned"
         row["base_dir"] = str(upload_dir)
 
@@ -451,9 +453,6 @@ else:
             ],
             use_container_width=True,
         )
-        row["Hysteresis"] = row.get("Hysteresis", "Missing")
-row["RTSIRM"] = row.get("RTSIRM", "Missing")
-row["ZFCFC"] = row.get("ZFCFC", "Missing")
 
         st.session_state.embedding["df"] = editable_df
 
