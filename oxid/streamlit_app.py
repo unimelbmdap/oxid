@@ -225,7 +225,7 @@ use_zfcfc = st.sidebar.checkbox("ZFC-FC", True)
 # UPLOAD
 # =========================
 
-sst.header("Upload Data")
+st.header("Upload Data")
 
 uploaded_files = st.file_uploader(
     "Upload .dat or MagIC files",
