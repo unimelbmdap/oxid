@@ -111,34 +111,37 @@ def plot_raw_files(groups):
 # =========================
 
 def build_embedding_dataframe(upload_dir, groups):
+
     samples = defaultdict(dict)
 
-row = {
-    "Name": sample_name,
-    "Hysteresis": None,
-    "RTSIRM": None,
-    "ZFCFC": None,
-}
-
     for path in groups.get("hysteresis", []):
+
         sample = sample_name_from_file(path)
+
         samples[sample]["Name"] = sample
         samples[sample]["Hysteresis"] = path.name
 
     for path in groups.get("rtsirm", []):
+
         sample = sample_name_from_file(path)
+
         samples[sample]["Name"] = sample
         samples[sample]["RTSIRM"] = path.name
 
     for path in groups.get("zfcfc", []):
+
         sample = sample_name_from_file(path)
+
         samples[sample]["Name"] = sample
         samples[sample]["ZFCFC"] = path.name
 
     rows = []
-    for _, row in samples.items():
+
+    for sample_name, row in samples.items():
+
         row["Group"] = "Unassigned"
         row["base_dir"] = str(upload_dir)
+
         rows.append(row)
 
     return pd.DataFrame(rows)
