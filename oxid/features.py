@@ -107,24 +107,29 @@ def build_feature_vectors(
                 if include_unnormalized:
                     feature_vectors.append(feature_vector)
 
-        feature_vector = np.concatenate(feature_vectors)
-        
+                feature_vector = np.concatenate(feature_vectors)
+
         print(
-    row["Name"],
-    len(feature_vector)
-)
+            row["Name"],
+            len(feature_vector)
+        )
+
         vectors.append(feature_vector)
+
+    # -----------------------------------
+    # Make vectors equal length
+    # -----------------------------------
+
+    max_len = max(len(v) for v in vectors)
+
+    vectors = np.array([
+        np.pad(v, (0, max_len - len(v)), constant_values=0)
+        for v in vectors
+    ])
+
+    return vectors
+
     
-    import numpy as np
-
-max_len = max(len(v) for v in vectors)
-
-vectors = np.array([
-    np.pad(v, (0, max_len - len(v)), constant_values=0)
-    for v in vectors
-])
-
-return vectors    
 
 
 def dimensionality_reduction(
