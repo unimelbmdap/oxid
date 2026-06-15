@@ -108,7 +108,7 @@ def build_feature_vectors(
                     feature_vectors.append(feature_vector)
 
         [type(d).__name__ for d in datasets],
-            len(feature_vector),
+        len(feature_vector),
         )
 
         vectors.append(feature_vector)
