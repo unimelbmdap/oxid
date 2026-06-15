@@ -20,8 +20,6 @@ def write_measurement(output_dir: Path, specimen: str, measurement_type: str, ma
     print(f"    Saved data to {new_path}")
     return new_path
 
-
-
 @app.command()
 def read_magic(
     path: str = typer.Argument(..., help="Path to the MAGIC data file"),
