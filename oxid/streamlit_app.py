@@ -232,6 +232,7 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
+UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 # ------------------------
