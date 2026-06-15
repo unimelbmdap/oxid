@@ -159,6 +159,21 @@ def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
 
     df = build_embedding_dataframe(upload_dir, groups)
 
+    # Filter to samples that contain all selected measurements
+
+if use_hysteresis:
+    df = df[df["Hysteresis"].notna()]
+
+if use_rtsirm:
+    df = df[df["RTSIRM"].notna()]
+
+if use_zfcfc:
+    df = df[df["ZFCFC"].notna()]
+
+print(
+    f"Using {len(df)} complete samples after measurement filtering"
+)
+
     if len(df) < 2:
         raise ValueError("UMAP requires at least two samples.")
 
@@ -412,6 +427,9 @@ else:
             ],
             use_container_width=True,
         )
+        row["Hysteresis"] = row.get("Hysteresis", "Missing")
+row["RTSIRM"] = row.get("RTSIRM", "Missing")
+row["ZFCFC"] = row.get("ZFCFC", "Missing")
 
         st.session_state.embedding["df"] = editable_df
 
