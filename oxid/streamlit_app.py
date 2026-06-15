@@ -186,6 +186,11 @@ def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
         features=20,
         include_normalized=True,
         include_unnormalized=True,
+        print(
+    row["Name"],
+    [type(d).__name__ for d in datasets],
+    len(feature_vector)
+)
     )
 
     n_neighbors = min(15, max(2, len(vectors) - 1))
@@ -285,9 +290,6 @@ if uploaded_files:
                     output_dir=UPLOAD_DIR,
                 )
 
-                st.write("Outputs:")
-                st.write(outputs)
-
                 st.session_state.magic_processed.add(path.name)
 
             # Re-add generated .dat files every rerun
@@ -309,12 +311,7 @@ if uploaded_files:
 # ------------------------
 # DEBUG
 # ------------------------
-st.write("Detected files:")
 
-st.write({
-    k: [p.name for p in v]
-    for k, v in st.session_state.file_groups.items()
-})
 # =========================
 # BUTTONS
 # =========================
