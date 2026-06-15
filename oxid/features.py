@@ -69,53 +69,83 @@ def build_feature_vectors(
             if path:
                 datasets.append(RTSIRM(path))
 
-        if len(datasets) == 0:
+                if len(datasets) == 0:
             continue
 
         feature_vectors = []
+
         for dataset in datasets:
             if verbose:
                 print(f"Extracting {dataset.path}")
-                
+
             data = dataset.extract()
 
-            # Get the maximum value for this 
+            # Get the maximum value for this dataset
             max_value = None
+
             for regime, arrays in data.items():
-    # Interpolate results to grid
-            x, y = arrays[0], arrays[1]
-            interpolated = np.interp(x_values[regime], x, y)
 
-            # Extract features
-            if features:
-                fft_values = np.fft.fft(interpolated)
-                positive_magnitudes = np.abs(
-                    fft_values[:len(fft_values)//2]
+                if len(arrays[1]) == 0:
+                    raise ValueError(
+                        f"Problem with {regime}. Check the data in {dataset.path}"
+                    )
+
+                my_max = arrays[1].max()
+
+                max_value = (
+                    my_max
+                    if max_value is None
+                    else np.maximum(max_value, my_max)
                 )
-                feature_vector = positive_magnitudes[:features]
-            else:
-                feature_vector = interpolated
 
-            assert (
-                include_normalized or include_unnormalized
-            ), "You must include at least one of normalized or unnormalized data"
+            for regime, arrays in data.items():
 
-            if include_normalized:
-                feature_vectors.append(feature_vector / max_value)
+                # Interpolate results to grid
+                x, y = arrays[0], arrays[1]
 
-            if include_unnormalized:
-                feature_vectors.append(feature_vector)
+                interpolated = np.interp(
+                    x_values[regime],
+                    x,
+                    y,
+                )
 
-# Finished processing ALL datasets/regimes for this sample
-feature_vector = np.concatenate(feature_vectors)
+                # Extract features
+                if features:
+                    fft_values = np.fft.fft(interpolated)
 
-print(
-    row["Name"],
-    [type(d).__name__ for d in datasets],
-    len(feature_vector)
-)
+                    positive_magnitudes = np.abs(
+                        fft_values[: len(fft_values) // 2]
+                    )
 
-vectors.append(feature_vector)
+                    feature_vector = positive_magnitudes[:features]
+
+                else:
+                    feature_vector = interpolated
+
+                assert (
+                    include_normalized or include_unnormalized
+                ), "You must include at least one of normalized or unnormalized data"
+
+                if include_normalized:
+                    feature_vectors.append(
+                        feature_vector / max_value
+                    )
+
+                if include_unnormalized:
+                    feature_vectors.append(
+                        feature_vector
+                    )
+
+        # Finished processing ALL datasets/regimes for this sample
+        feature_vector = np.concatenate(feature_vectors)
+
+        print(
+            row["Name"],
+            [type(d).__name__ for d in datasets],
+            len(feature_vector),
+        )
+
+        vectors.append(feature_vector)
                 
 
         print(
