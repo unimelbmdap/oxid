@@ -1,10 +1,10 @@
-import os
-st.write(os.listdir())
-
 import streamlit as st
 from pathlib import Path
 from collections import defaultdict
 import pandas as pd
+
+import os
+st.write(os.listdir())
 
 from read_magic import read_magic
     
