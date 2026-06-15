@@ -282,6 +282,8 @@ if uploaded_files:
                     output_dir=UPLOAD_DIR,
                 )
 
+                st.write ("Outputs:", outputs)
+
                 st.session_state.magic_processed.add(path.name)
 
                 if outputs:
