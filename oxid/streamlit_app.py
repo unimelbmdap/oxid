@@ -3,9 +3,6 @@ from pathlib import Path
 from collections import defaultdict
 import pandas as pd
 
-import os
-st.write(os.listdir())
-
 from read_magic import read_magic
     
 from data import Hysteresis, RTSIRM, ZFCFC
