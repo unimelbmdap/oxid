@@ -179,16 +179,16 @@ def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
             "Need at least two samples with the selected measurements."
         )
 
- vectors = build_feature_vectors(
-    df,
-    hysteresis=use_hysteresis,
-    rtsirm=use_rtsirm,
-    zfcfc=use_zfcfc,
-    points=250,
-    features=20,
-    include_normalized=True,
-    include_unnormalized=False,  # strongly recommended (see note below)
-)
+    vectors = build_feature_vectors(
+        df,
+        hysteresis=use_hysteresis,
+        rtsirm=use_rtsirm,
+        zfcfc=use_zfcfc,
+        points=250,
+        features=20,
+        include_normalized=True,
+        include_unnormalized=False,  # strongly recommended (see note below)
+    )
 
     n_neighbors = min(15, max(2, len(vectors) - 1))
 
