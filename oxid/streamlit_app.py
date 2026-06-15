@@ -225,77 +225,79 @@ use_zfcfc = st.sidebar.checkbox("ZFC-FC", True)
 # UPLOAD
 # =========================
 
-st.header("Upload Data")
+sst.header("Upload Data")
 
 uploaded_files = st.file_uploader(
     "Upload .dat or MagIC files",
     accept_multiple_files=True,
 )
 
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# ------------------------
+# SESSION STATE INIT (ONCE ONLY)
+# ------------------------
+if "magic_processed" not in st.session_state:
+    st.session_state.magic_processed = set()
+
+if "file_groups" not in st.session_state:
+    st.session_state.file_groups = {
+        "hysteresis": [],
+        "rtsirm": [],
+        "zfcfc": [],
+    }
+
+# ------------------------
+# RESET GROUPS EACH RUN (IMPORTANT FOR STREAMLIT)
+# ------------------------
 st.session_state.file_groups = {
     "hysteresis": [],
     "rtsirm": [],
     "zfcfc": [],
 }
-current_files = {
-    uploaded_file.name
-    for uploaded_file in uploaded_files
-}
 
-for path in UPLOAD_DIR.glob("*"):
-
-    if path.name not in current_files:
-        path.unlink(missing_ok=True)
-        
+# ------------------------
+# PROCESS UPLOADS
+# ------------------------
 if uploaded_files:
 
     for uploaded_file in uploaded_files:
 
         path = UPLOAD_DIR / uploaded_file.name
 
-        if not path.exists():
-            with open(path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+        # Always overwrite local copy (keeps UI consistent)
+        with open(path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
+        # ---------------- MAGIC FILES ----------------
+        if path.suffix.lower() in [".txt", ".mag", ".magic"]:
+
+            if path.name not in st.session_state.magic_processed:
+
+                st.info(f"Processing MagIC file: {path.name}")
+
+                outputs = read_magic(
+                    path=str(path),
+                    output_dir=UPLOAD_DIR,
+                )
+
+                st.session_state.magic_processed.add(path.name)
+
+                if outputs:
+                    for out in outputs:
+                        kind = classify_file(out)
+
+                        if kind in st.session_state.file_groups:
+                            st.session_state.file_groups[kind].append(out)
+
+            continue
+
+        # ---------------- NORMAL FILES ----------------
         kind = classify_file(path)
 
         if kind in st.session_state.file_groups:
             st.session_state.file_groups[kind].append(path)
-
-        # ---------------- MagIC ----------------
-    if "magic_processed" not in st.session_state:
-    st.session_state.magic_processed = set()
-    
-    if path.suffix.lower() in [".txt", ".magic", ".mag"]:
-
-    if path.name not in st.session_state.magic_processed:
-
-        st.info(f"Processing MagIC file: {path.name}")
-
-        outputs = read_magic(
-            path=str(path),
-            output_dir=UPLOAD_DIR,
-        )
-
-        st.session_state.magic_processed.add(path.name)
-
-        if outputs:
-
-            for out in outputs:
-
-                kind = classify_file(out)
-
-                if kind in st.session_state.file_groups:
-                    st.session_state.file_groups[kind].append(out)
-
-    continue
-        # ---------------- Normal files ----------------
-        kind = classify_file(path)
-
-        if kind in st.session_state.file_groups:
-            st.session_state.file_groups[kind].append(path)
-
-
+            
 # =========================
 # BUTTONS
 # =========================
