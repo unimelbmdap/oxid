@@ -69,8 +69,8 @@ def build_feature_vectors(
             if path:
                 datasets.append(RTSIRM(path))
 
-                if len(datasets) == 0:
-            continue
+               if len(datasets) == 0:
+    continue
 
         feature_vectors = []
 
