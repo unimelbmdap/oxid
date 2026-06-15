@@ -17,7 +17,7 @@ def find_column(df, name):
         if name in noramlize_column_name(column):
             return column
     return None
-    
+
 def build_feature_vectors(
     df: pd.DataFrame,
     hysteresis: bool = True,
@@ -130,3 +130,35 @@ def build_feature_vectors(
         raise ValueError(f"Inconsistent feature vector lengths: {sorted(lengths)}")
 
     return np.asarray(vectors)
+    def dimensionality_reduction(
+    vectors: np.ndarray,
+    n_neighbors:int = 15,
+    min_dist:float = 0.1,
+    seed:int = 0,
+    n_components:int = 2,
+    reducer_path: Path|str|None = None,
+    force:bool = False,
+):
+    """ 
+    Perform dimensionality reduction on the input vectors using UMAP.
+    If a reducer_path is provided and the file exists, it will load the UMAP model from the file.
+    Otherwise, it will fit a new UMAP model and save it to the specified path.
+    """
+    if reducer_path and Path(reducer_path).exists() and not force:
+        import pickle
+        with open(reducer_path, "rb") as f:
+            model = pickle.load(f)
+    else:
+        model = umap.UMAP(n_neighbors=n_neighbors, n_components=n_components, random_state=seed, min_dist=min_dist)
+        model.fit(vectors)
+        if reducer_path:
+            import pickle
+            Path(reducer_path).parent.mkdir(exist_ok=True, parents=True)
+            print(f"Writing UMAP reducer to {reducer_path}")
+            with open(reducer_path, "wb") as f:
+                pickle.dump(model, f)
+    
+    # Perform the transformation
+    result = np.concatenate([model.transform(vectors[i:i+1]) for i in range(len(vectors))])
+    return result
+    
