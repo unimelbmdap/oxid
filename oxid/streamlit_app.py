@@ -10,10 +10,7 @@ from read_magic import read_magic
     
 from data import Hysteresis, RTSIRM, ZFCFC
 
-from features import (
-    build_feature_vectors,
-    dimensionality_reduction,
-)
+from cli_wrapper import run_oxid_embed
 
 from viz import (
     plot_components,
@@ -170,8 +167,35 @@ def build_embedding_dataframe(upload_dir, groups):
 # PIPELINE
 # =========================
 
-def run_pipeline(groups, upload_dir, use_hysteresis, use_rtsirm, use_zfcfc):
+def run_pipeline(
+    groups,
+    upload_dir,
+    use_hysteresis,
+    use_rtsirm,
+    use_zfcfc,
+):
 
+    df = build_embedding_dataframe(
+        upload_dir,
+        groups,
+    )
+
+    if len(df) < 2:
+        raise ValueError(
+            "Need at least two samples."
+        )
+
+    result_df = run_oxid_embed(
+        df,
+        components=2,
+    )
+
+    coords = result_df[
+        ["Component_1", "Component_2"]
+    ].values
+
+    return coords, result_df
+    
     df = build_embedding_dataframe(upload_dir, groups)
 
     print(
