@@ -5,7 +5,7 @@ from collections import defaultdict
 import pandas as pd
 from rich.progress import track
 
-from data import Hysteresis, RTSIRM, ZFCFC
+from .data import Hysteresis, RTSIRM, ZFCFC
 
 def noramlize_column_name(name):
     return name.lower().replace("-", "")
@@ -18,118 +18,101 @@ def find_column(df, name):
             return column
     return None
 
+
 def build_feature_vectors(
     df: pd.DataFrame,
     hysteresis: bool = True,
     rtsirm: bool = True,
     zfcfc: bool = True,
-    features: int = 20,
+    features: int = None,
     include_normalized: bool = True,
     include_unnormalized: bool = False,
-    points: int = 250,
-    verbose: bool = False,
+    points: int = 250, # Number of points to interpolate to
+    verbose:bool = False,
 ) -> np.ndarray:
-
     hysteresis_column = find_column(df, "hysteresis") if hysteresis else None
     rtsirm_column = find_column(df, "rtsirm") if rtsirm else None
     zfcfc_column = find_column(df, "zfcfc") if zfcfc else None
 
-    min_temp, max_temp = 15, 297
+    results = defaultdict(dict)
+    
+    min_temp = 15
+    max_temp = 297
     field_extreme = 69500
-
-    x_values = {
-        "Cooling": np.linspace(min_temp, max_temp, points),
-        "Heating": np.linspace(min_temp, max_temp, points),
-        "ZFC": np.linspace(min_temp, max_temp, points),
-        "FC": np.linspace(min_temp, max_temp, points),
-        "Decreasing": np.linspace(-field_extreme, field_extreme, points),
-        "Increasing": np.linspace(-field_extreme, field_extreme, points),
-    }
+    min_values = {'Cooling': min_temp, 'Heating': min_temp, 'ZFC': min_temp, 'FC': min_temp, 'Decreasing': -field_extreme, 'Increasing': field_extreme}
+    max_values = {'Cooling': max_temp, 'Heating': max_temp, 'ZFC': max_temp, 'FC': max_temp, 'Decreasing': -field_extreme, 'Increasing': field_extreme}
+    x_values = dict()
+    for regime in min_values:
+        x_values[regime] = np.linspace(min_values[regime], max_values[regime], points)
 
     vectors = []
+    for i, row in track(df.iterrows(), total=len(df), description="Building feature vectors"):
+        results[i].update(row)
 
-    for _, row in track(df.iterrows(), total=len(df), description="Building feature vectors"):
-
-        def get_path(column):
-            if not column or not row[column]:
+        def get_path(column) -> Path|None:
+            path = Path(row['base_dir'])/str(row[column]) if column and row[column] else None
+            if path and not path.exists():
                 return None
-            path = Path(row["base_dir"]) / str(row[column])
-            return path if path.exists() else None
+            return path
 
         datasets = []
-
-        if hysteresis and hysteresis_column:
-            p = get_path(hysteresis_column)
-            if p:
-                datasets.append(Hysteresis(p))
-
-        if rtsirm and rtsirm_column:
-            p = get_path(rtsirm_column)
-            if p:
-                datasets.append(RTSIRM(p))
-
-        if zfcfc and zfcfc_column:
-            p = get_path(zfcfc_column)
-            if p:
-                datasets.append(ZFCFC(p))
+        if hysteresis_column:
+            path = get_path(hysteresis_column)
+            if path:
+                datasets.append(Hysteresis(path))
+        if zfcfc_column:
+            path = get_path(zfcfc_column)
+            if path:
+                datasets.append(ZFCFC(path))
+        if rtsirm_column:
+            path = get_path(rtsirm_column)
+            if path:
+                datasets.append(RTSIRM(path))
 
         if len(datasets) == 0:
             continue
 
-        sample_features = []
-
+        feature_vectors = []
         for dataset in datasets:
+            if verbose:
+                print(f"Extracting {dataset.path}")
+                
             data = dataset.extract()
 
+            # Get the maximum value for this 
             max_value = None
-
-            # compute scaling
             for regime, arrays in data.items():
                 if len(arrays[1]) == 0:
-                    continue
-                m = np.max(arrays[1])
-                max_value = m if max_value is None else max(max_value, m)
+                    raise ValueError(f"Problem with {regime}. Check the data in {dataset.path}")
 
-            # per regime features
+                my_max = arrays[1].max()
+                max_value = my_max if max_value is None else np.maximum(max_value, my_max)
+
             for regime, arrays in data.items():
-                x, y = arrays[0], arrays[1]
+                # Interpolate results to grid
+                x,y = arrays[0], arrays[1]
+                interpolated = np.interp(x_values[regime], x, y)
 
-                if len(x) == 0 or len(y) == 0:
-                    continue
+                # Extract features
+                if features:
+                    fft_values = np.fft.fft(interpolated)
+                    positive_magnitudes = np.abs(fft_values[:len(fft_values)//2])
+                    feature_vector = positive_magnitudes[:features]
+                else:
+                    feature_vector = interpolated
 
-                interp = np.interp(x_values[regime], x, y)
-
-                fft_vals = np.fft.fft(interp)
-                mags = np.abs(fft_vals[: len(fft_vals)//2])
-
-                feat = mags[:features]
-                feat = np.pad(feat, (0, features - len(feat)))
-
+                assert include_normalized or include_unnormalized, f"You must include at least one of normalized or unnormalized data"
                 if include_normalized:
-                    sample_features.append(feat / max_value if max_value else feat)
-
+                    feature_vectors.append(feature_vector/max_value)
                 if include_unnormalized:
-                    sample_features.append(feat)
+                    feature_vectors.append(feature_vector)
 
-        if len(sample_features) == 0:
-            continue
-
-        feature_vector = np.concatenate(sample_features)
-
-        if verbose:
-            print(row.get("Name", ""), feature_vector.shape)
-
+        feature_vector = np.concatenate(feature_vectors)
         vectors.append(feature_vector)
+    
+    vectors = np.asarray(vectors)
+    return vectors    
 
-    # enforce consistency
-    lengths = {len(v) for v in vectors}
-
-    print("Vector lengths:", sorted(lengths))
-
-    if len(lengths) != 1:
-        raise ValueError(f"Inconsistent feature vector lengths: {sorted(lengths)}")
-
-    return np.asarray(vectors)
 
 def dimensionality_reduction(
     vectors: np.ndarray,
