@@ -6,7 +6,7 @@ app = typer.Typer(pretty_exceptions_enable=False)
 
 def write_measurement(output_dir: Path, specimen: str, measurement_type: str, mass: float, df: pd.DataFrame, x_column="Temperature (K)"):
     if df.empty:
-        return None
+        return
 
     # Check to see if 'Moment (A⋅m2/kg)' is non NaN
     if 'Moment (A⋅m2/kg)' in df.columns and not df['Moment (A⋅m2/kg)'].isnull().all():
@@ -18,7 +18,7 @@ def write_measurement(output_dir: Path, specimen: str, measurement_type: str, ma
     new_path.write_text(f"INFO,{mass},SAMPLE_MASS\n[Data]\n")
     df[[x_column, moment_column]].to_csv(new_path, index=False, mode="a", header=True)
     print(f"    Saved data to {new_path}")
-    return new_path
+
 
 @app.command()
 def read_magic(
@@ -31,8 +31,6 @@ def read_magic(
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-
-    generated_files = []
 
     with open(path, 'r') as f:
         lines = f.readlines()
@@ -130,93 +128,34 @@ def read_magic(
         mass = specimen_data["weight"].values[0] * 1_000_000 if 'weight' in specimen_data and len(specimen_data) else 0
 
         
-    experiment_names = measurements_df[experiment_column].unique()
-
-    for experiment in experiment_names:
-
-        print(f"Experiment/Specimen: {experiment}")
-
-        specimen_measurements_df = measurements_df[
-            measurements_df[experiment_column] == experiment
-        ]
-
-        specimen_column = experiment_column
-
-        if specimen_column not in specimens_df:
-            specimen_column += "s"
-
-        assert specimen_column in specimens_df, (
-            f"Cannot find `{specimen_column}` in {specimens_df.columns}"
+        write_measurement(
+            output_dir, 
+            experiment, 
+            "RTSIRM", 
+            mass, 
+            specimen_measurements_df[specimen_measurements_df['method_codes'] == sirm_code],
         )
-
-        specimen_data = specimens_df[
-            specimens_df[specimen_column] == experiment
-        ]
-
-        mass = (
-            specimen_data["weight"].values[0] * 1_000_000
-            if "weight" in specimen_data and len(specimen_data)
-            else 0
-        )
-
-        # -----------------------------
-        # RTSIRM
-        # -----------------------------
-        p = write_measurement(
-            output_dir,
-            experiment,
-            "RTSIRM",
-            mass,
-            specimen_measurements_df[
-                specimen_measurements_df["method_codes"] == sirm_code
-            ],
-        )
-
-        if p:
-            generated_files.append(p)
-
-        # -----------------------------
-        # ZFCFC
-        # -----------------------------
-        p = write_measurement(
-            output_dir,
-            experiment,
-            "ZFCFC",
-            mass,
+        write_measurement(
+            output_dir, 
+            experiment, 
+            "ZFCFC", 
+            mass, 
             pd.concat([
-                specimen_measurements_df[
-                    specimen_measurements_df["method_codes"] == zfc_code
-                ],
-                specimen_measurements_df[
-                    specimen_measurements_df["method_codes"] == fc_code
-                ],
-            ]),
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == zfc_code],
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == fc_code]
+            ])
         )
-
-        if p:
-            generated_files.append(p)
-
-        # -----------------------------
-        # HYSTERESIS
-        # -----------------------------
         if hys_code:
-
-            p = write_measurement(
-                output_dir,
-                experiment,
-                "HYST",
-                mass,
-                specimen_measurements_df[
-                    specimen_measurements_df["method_codes"] == hys_code
-                ],
+            write_measurement(
+                output_dir, 
+                experiment, 
+                "HYST", 
+                mass, 
+                specimen_measurements_df[specimen_measurements_df['method_codes'] == hys_code],
                 x_column="Magnetic Field (Oe)",
             )
+    
 
-            if p:
-                generated_files.append(p)
-
-    return generated_files
 
 if __name__ == "__main__":
-    import typer
-    typer.run(read_magic)
+    app()
