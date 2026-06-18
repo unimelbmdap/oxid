@@ -8,11 +8,11 @@ import pandas as pd
 
 from read_magic import read_magic
     
-from .data import Hysteresis, RTSIRM, ZFCFC
+from oxid.data import Hysteresis, RTSIRM, ZFCFC
 
 from cli_wrapper import run_oxid_embed
 
-from .viz import (
+from oxid.viz import (
     plot_components,
     plot_moment,
 )
