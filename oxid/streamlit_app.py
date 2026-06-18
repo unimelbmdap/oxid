@@ -8,11 +8,11 @@ import pandas as pd
 
 from read_magic import read_magic
     
-from data import Hysteresis, RTSIRM, ZFCFC
+from .data import Hysteresis, RTSIRM, ZFCFC
 
 from cli_wrapper import run_oxid_embed
 
-from viz import (
+from .viz import (
     plot_components,
     plot_moment,
 )
@@ -195,7 +195,7 @@ def run_pipeline(
     ].values
 
     return coords, result_df
-    
+
     df = build_embedding_dataframe(upload_dir, groups)
 
     print(
