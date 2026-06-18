@@ -109,14 +109,7 @@ def build_feature_vectors(
 
         feature_vector = np.concatenate(feature_vectors)
         vectors.append(feature_vector)
-    lengths = [len(v) for v in vectors]
-
-    print("Vector lengths:")
-    print(lengths)
-
-    print("Unique lengths:")
-    print(sorted(set(lengths)))
-
+    
     vectors = np.asarray(vectors)
     return vectors    
 
