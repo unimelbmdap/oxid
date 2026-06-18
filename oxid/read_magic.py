@@ -156,8 +156,6 @@ def read_magic(
                 x_column="Magnetic Field (Oe)",
             )
 
-    return outputs    
-
 if __name__ == "__main__":
     import typer
     typer.run(read_magic)
