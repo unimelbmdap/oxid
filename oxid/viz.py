@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from .data import IronOxide, DATA_TYPES, Data
+from data import IronOxide, DATA_TYPES, Data
 
 pio.kaleido.scope.mathjax = None
 
