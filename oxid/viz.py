@@ -161,7 +161,7 @@ def plot_components(
     Plot the components of the transformed data using Plotly.
     """
     names = df["Name"].values
-    cluster = df[color_column].values
+    cluster = df[color_column].values if color_column and color_column in df else None
 
     x = transformed_data[:,0]
     y = transformed_data[:,1] if transformed_data.shape[1] > 1 else np.zeros_like(x)
