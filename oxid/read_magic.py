@@ -19,7 +19,7 @@ def write_measurement(output_dir: Path, specimen: str, measurement_type: str, ma
     df[[x_column, moment_column]].to_csv(new_path, index=False, mode="a", header=True)
     print(f"    Saved data to {new_path}")
 
-return new_path
+    return new_path
 
 @app.command()
 def read_magic(
@@ -155,7 +155,8 @@ def read_magic(
                 specimen_measurements_df[specimen_measurements_df['method_codes'] == hys_code],
                 x_column="Magnetic Field (Oe)",
             )
-    return outputs
+
+    return outputs    
 
 if __name__ == "__main__":
     import typer
