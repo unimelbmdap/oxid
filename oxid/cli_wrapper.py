@@ -6,8 +6,10 @@ import pandas as pd
 
 def run_oxid_embed(
     df: pd.DataFrame,
-    components: int = 2,
-):
+    components: int = 2):
+    print("=== WRAPPER STARTED")
+    print(df.head())
+
     """
     Run the existing OxID CLI embedding pipeline.
     """
@@ -35,12 +37,20 @@ def run_oxid_embed(
             "--force",
         ]
 
+        print("COMMAND:")
+        print(" ".join(cmd))
+        
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
         )
-
+        print("RETURN CODE:", result.returncode)
+        print("STDOUT:")
+        print(result.stdout)
+        print("STDERR:")
+        print(result.stderr)
+        
         if result.returncode != 0:
             raise RuntimeError(
                 f"OxID CLI failed:\n\n{result.stderr}"
