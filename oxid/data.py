@@ -26,6 +26,9 @@ class Data():
         for line in lines:
             if line.strip().endswith('SAMPLE_MASS') and line.startswith('INFO,'):
                 components = line.split(",")
+                print("components =", components)
+                print("mass field =", repr(components[1]))
+
                 mass = float(components[1])
         assert mass is not None, "Could not find SAMPLE_MASS in data file"
 
