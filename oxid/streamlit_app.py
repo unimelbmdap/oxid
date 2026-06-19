@@ -27,13 +27,6 @@ measurement_options = st.sidebar.multiselect(
     ["Hysteresis", "RT-SIRM", "ZFC-FC"],
     default=["Hysteresis", "RT-SIRM", "ZFC-FC"]
 )
-if len(measurement_options) == 0:
-    st.error("Select at least 1 measurement type")
-    st.stop()
-
-if len(measurement_options) > 2:
-    st.error("Select at most 2 measurement types")
-    st.stop()
 
 use_hysteresis = "Hysteresis" in measurement_options
 use_rtsirm = "RT-SIRM" in measurement_options
@@ -182,36 +175,62 @@ def run_pipeline(
     use_rtsirm,
     use_zfcfc,
 ):
-    # Build dataframe ONCE
-    df = build_embedding_dataframe(upload_dir, groups)
 
-    # -----------------------------
-    # Apply measurement filtering
-    # -----------------------------
-    if not use_hysteresis:
-        df = df.drop(columns=["Hysteresis"], errors="ignore")
+    df = build_embedding_dataframe(
+        upload_dir,
+        groups,
+    )
 
-    if not use_rtsirm:
-        df = df.drop(columns=["RTSIRM"], errors="ignore")
-
-    if not use_zfcfc:
-        df = df.drop(columns=["ZFCFC"], errors="ignore")
-
-    # -----------------------------
-    # Validate dataset
-    # -----------------------------
     if len(df) < 2:
-        raise ValueError("Need at least two samples after filtering.")
+        raise ValueError(
+            "Need at least two samples."
+        )
 
-    # -----------------------------
-    # Run embedding
-    # -----------------------------
-    result_df = run_oxid_embed(df, components=2)
+    result_df = run_oxid_embed(
+        df,
+        components=2,
+    )
 
-    coords = result_df[["Component_1", "Component_2"]].values
+    coords = result_df[
+        ["Component_1", "Component_2"]
+    ].values
 
     return coords, result_df
 
+    df = build_embedding_dataframe(upload_dir, groups)
+
+    print(
+        f"Using {len(df)} complete samples after measurement filtering"
+    )
+
+    if len(df) < 2:
+        raise ValueError(
+            "Need at least two samples with the selected measurements."
+        )
+
+    vectors = build_feature_vectors(
+        df,
+        hysteresis=use_hysteresis,
+        rtsirm=use_rtsirm,
+        zfcfc=use_zfcfc,
+        points=250,
+        features=20,
+        include_normalized=True,
+        include_unnormalized=False,  # strongly recommended (see note below)
+    )
+
+    n_neighbors = min(15, max(2, len(vectors) - 1))
+
+    embedding = dimensionality_reduction(
+        vectors,
+        n_neighbors=n_neighbors,
+        min_dist=0.1,
+        seed=0,
+        n_components=2,
+        force=True,
+    )
+
+    return embedding, df
     # =========================
     # STEP 2 — FILTER HERE (IMPORTANT)
     # =========================
