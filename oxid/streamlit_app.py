@@ -1,9 +1,7 @@
 import os
-
 import streamlit as st
 
-st.dataframe(df.head())
-
+import streamlit as st
 
 from pathlib import Path
 from collections import defaultdict
