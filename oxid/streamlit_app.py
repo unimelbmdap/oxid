@@ -1,7 +1,13 @@
 import os
-import streamlit as st
 
 import streamlit as st
+
+st.write("Columns:")
+st.write(df.columns.tolist())
+
+st.dataframe(df.head())
+
+
 from pathlib import Path
 from collections import defaultdict
 import pandas as pd
