@@ -2,9 +2,6 @@ import os
 
 import streamlit as st
 
-st.write("Columns:")
-st.write(df.columns.tolist())
-
 st.dataframe(df.head())
 
 
