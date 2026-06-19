@@ -38,9 +38,22 @@ class Data():
                 df['Moment (emu)'] = df['Moment..emu.']
 
             moment_column = 'Moment (emu)'
-            if df[moment_column].isnull().values.any():
-                df[moment_column] = df['DC Moment Fixed Ctr (emu)']
 
+        if df[moment_column].isnull().values.any():
+
+            if 'DC Moment Fixed Ctr (emu)' not in df.columns:
+                st.error("Missing column: DC Moment Fixed Ctr (emu)")
+                st.write("Available columns:")
+                st.write(df.columns.tolist())
+
+                # stop here so you can inspect the columns
+                raise ValueError(
+                    f"Missing column 'DC Moment Fixed Ctr (emu)'. "
+                    f"Available columns: {df.columns.tolist()}"
+                )
+
+            df[moment_column] = df['DC Moment Fixed Ctr (emu)']
+            
             if not pd.api.types.is_numeric_dtype(df[moment_column]):
                 df[moment_column] = df[moment_column].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
             df['Moment (A⋅m2/kg)'] = df[moment_column] / mass * 1000
