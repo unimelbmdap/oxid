@@ -20,16 +20,13 @@ class Data():
         data_start_index = next(i for i, line in enumerate(lines) if '[Data]' in line)
 
         df = pd.read_csv(self.path, skiprows=data_start_index + 1)
-        print(df.columns.tolist())
         
         # find line with 'SAMPLE_MASS,0.123'
         mass = None
         for line in lines:
             if line.strip().endswith('SAMPLE_MASS') and line.startswith('INFO,'):
                 components = line.split(",")
-                mass = float(
-                    re.sub(r'[^0-9eE.+-]', '', components[1])
-                )
+                mass = float(components[1])
         assert mass is not None, "Could not find SAMPLE_MASS in data file"
 
         # Calculate 'Moment (A⋅m2/kg)' if not present
@@ -38,25 +35,13 @@ class Data():
                 df['Moment (emu)'] = df['Moment..emu.']
 
             moment_column = 'Moment (emu)'
-
-        if df[moment_column].isnull().values.any():
-
-            if 'DC Moment Fixed Ctr (emu)' not in df.columns:
-                st.error("Missing column: DC Moment Fixed Ctr (emu)")
-                st.write("Available columns:")
-                st.write(df.columns.tolist())
-
-                # stop here so you can inspect the columns
-                raise ValueError(
-                    f"Missing column 'DC Moment Fixed Ctr (emu)'. "
-                    f"Available columns: {df.columns.tolist()}"
-                )
-
-            df[moment_column] = df['DC Moment Fixed Ctr (emu)']
+            if df[moment_column].isnull().values.any():
+                df[moment_column] = df['DC Moment Fixed Ctr (emu)']
 
             if not pd.api.types.is_numeric_dtype(df[moment_column]):
                 df[moment_column] = df[moment_column].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
             df['Moment (A⋅m2/kg)'] = df[moment_column] / mass * 1000
+
         return df
     
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
