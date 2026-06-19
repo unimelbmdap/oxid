@@ -281,7 +281,7 @@ st.set_page_config(
 )
 
 st.title("🧲 OxID Dashboard")
-
+st.write ("This is a web-friendly version of the OxID python package for magnetic mineral data analysis. Upload your data, run the UMAP analysis, and explore the results below! For more customization and advanced features, check out the full OxID package on GitHub https://github.com/unimelbmdap/oxid.git. To get started, upload your hysteresis, RT-SIRM, and ZFC-FC data files (in .dat or MagIC format) using the uploader below. Make sure that your files all have the same root name, and have either -RTSIRM, -HYST or -ZFCFC. Then click 'Run OxID' to perform the analysis and visualize the UMAP embedding of your samples. You can assign samples to groups in the 'Sample Grouping' section to see how they cluster in the embedding. For any questions or issues, please refer to the GitHub repository or contact the developers.")
 
 # =========================
 # SIDEBAR
