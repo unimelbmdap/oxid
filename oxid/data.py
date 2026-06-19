@@ -53,11 +53,14 @@ class Data():
                 )
 
             df[moment_column] = df['DC Moment Fixed Ctr (emu)']
-            
+
             if not pd.api.types.is_numeric_dtype(df[moment_column]):
                 df[moment_column] = df[moment_column].astype(str).str.replace(r'[^0-9.eE-]', '', regex=True).astype(float)
             df['Moment (A⋅m2/kg)'] = df[moment_column] / mass * 1000
+        print("Columns before return:")
+        print(df.columns.tolist())
 
+        print("Has Moment (A⋅m2/kg)?", 'Moment (A⋅m2/kg)' in df.columns)
         return df
     
     def extract(self) -> dict[str, tuple[np.ndarray,np.ndarray]]:
