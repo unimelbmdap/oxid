@@ -20,6 +20,7 @@ class Data():
         data_start_index = next(i for i, line in enumerate(lines) if '[Data]' in line)
 
         df = pd.read_csv(self.path, skiprows=data_start_index + 1)
+        print(df.columns.tolist())
         
         # find line with 'SAMPLE_MASS,0.123'
         mass = None
